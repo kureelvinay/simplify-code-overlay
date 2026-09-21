@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
 // Publishes a --package bundle as a GitHub Release.
 //
-//   bun run script/publish-bundle.ts --version 1.18.31 --repo owner/name [--target <branch-or-sha>]
+//   bun run script/publish-bundle.ts --version 1.18.31 --repo owner/name [--bundle package|desktop] [--target <branch-or-sha>]
+//
+// --bundle package (default) publishes dist/<v>/package as v<v>; --bundle desktop publishes dist/<v>/desktop as v<v>-desktop.
 //
 // Resumable: anything already uploaded with the right size is skipped, anything partial is replaced,
 // so an interrupted run is finished by running it again. Needs a token with `repo` scope, from
@@ -11,7 +13,7 @@ import { existsSync, readdirSync, statSync } from "node:fs"
 import path from "node:path"
 import { $ } from "bun"
 import { loadBrand } from "../src/brand"
-import { contentType, missingAssets, releaseNotes, releaseTitle, type RemoteAsset } from "../src/publish"
+import { contentType, missingAssets, releaseNotes, releaseTag, releaseTitle, type BundleKind, type RemoteAsset } from "../src/publish"
 
 const arg = (name: string) => {
   const i = process.argv.indexOf(`--${name}`)
@@ -20,14 +22,15 @@ const arg = (name: string) => {
 const version = arg("version")
 const repo = arg("repo")
 const target = arg("target")
-if (!version || !repo) {
-  console.error("usage: bun run script/publish-bundle.ts --version X.Y.Z --repo owner/name [--target <branch-or-sha>]")
+const kind = (arg("bundle") ?? "package") as BundleKind
+if (!version || !repo || (kind !== "package" && kind !== "desktop")) {
+  console.error("usage: bun run script/publish-bundle.ts --version X.Y.Z --repo owner/name [--bundle package|desktop] [--target <branch-or-sha>]")
   process.exit(1)
 }
 
-const dir = path.resolve(import.meta.dir, "..", "dist", version, "package")
+const dir = path.resolve(import.meta.dir, "..", "dist", version, kind)
 if (!existsSync(path.join(dir, "SHA256SUMS"))) {
-  console.error(`no bundle at ${dir}. Build it first: bun run src/pipeline.ts --package --version ${version}`)
+  console.error(`no bundle at ${dir}. Build it first: bun run src/pipeline.ts --${kind === "desktop" ? "desktop-package" : "package"} --version ${version}`)
   process.exit(1)
 }
 
@@ -43,7 +46,7 @@ async function token(): Promise<string> {
 const auth = { Authorization: `Bearer ${await token()}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }
 const api = `https://api.github.com/repos/${repo}`
 const brand = loadBrand()
-const tag = `v${version}`
+const tag = releaseTag(version, kind)
 
 async function json<T>(res: Response, what: string): Promise<T> {
   if (!res.ok) throw new Error(`${what}: HTTP ${res.status} ${(await res.text()).slice(0, 300)}`)
@@ -65,7 +68,7 @@ if (existing.status === 404) {
     await fetch(`${api}/releases`, {
       method: "POST",
       headers: auth,
-      body: JSON.stringify({ tag_name: tag, target_commitish: target, name: releaseTitle(brand, version), body: releaseNotes(brand, version, repo) }),
+      body: JSON.stringify({ tag_name: tag, target_commitish: target, name: releaseTitle(brand, version, kind), body: releaseNotes(brand, version, repo, kind) }),
     }),
     "create release",
   )

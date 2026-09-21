@@ -53,7 +53,7 @@ bun run src/pipeline.ts --local --version 1.18.31   # build + install on this ma
 bun run src/pipeline.ts --desktop --version 1.18.31 # macOS: build + install the desktop app
 bun run src/pipeline.ts --package --version 1.18.31 # terminal version, all 12 targets -> dist/<v>/package
 bun run src/pipeline.ts --desktop-package --version 1.18.31 # desktop app, Mac + Windows -> dist/<v>/desktop
-bun run script/publish-bundle.ts --version 1.18.31 --repo owner/name # a bundle -> GitHub Release
+bun run script/publish-bundle.ts --version 1.18.31 --repo owner/name [--bundle desktop] # a bundle -> GitHub Release
 bun run src/pipeline.ts --release --version 1.18.31 # build all targets, publish, GitHub release
 ```
 

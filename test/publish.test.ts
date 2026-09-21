@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { loadBrand } from "../src/brand"
-import { contentType, missingAssets, releaseNotes, releaseTitle } from "../src/publish"
+import { contentType, missingAssets, releaseNotes, releaseTag, releaseTitle } from "../src/publish"
 
 const brand = loadBrand()
 
@@ -49,5 +49,33 @@ describe("release text", () => {
     // a private repo's assets need a signed-in browser or a token: say so, or the first download attempt 404s
     expect(notes).toContain("private")
     expect(notes).toContain("https://github.com/anomalyco/opencode/releases/tag/v1.18.31")
+  })
+})
+
+describe("the desktop bundle is its own release", () => {
+  test("gets its own tag, so it never collides with the terminal bundle's INSTALL.md and SHA256SUMS", () => {
+    expect(releaseTag("1.18.31", "package")).toBe("v1.18.31")
+    expect(releaseTag("1.18.31", "desktop")).toBe("v1.18.31-desktop")
+  })
+  test("is titled as the desktop app", () => {
+    expect(releaseTitle(brand, "1.18.31", "desktop")).toBe("XCode by SimplifyX 1.18.31 (desktop app)")
+  })
+  test("its notes give the desktop install commands and the same plain warnings", () => {
+    const notes = releaseNotes(brand, "1.18.31", "kureelvinay/xcode-overlay", "desktop")
+    expect(notes).toContain("sh install-mac.sh")
+    expect(notes).toContain("install-windows.ps1")
+    expect(notes).toContain("XCode-mac-apple-silicon.zip")
+    expect(notes).toContain("not signed")
+    expect(notes).toContain("has not been run on Windows")
+    expect(notes).toContain("does not update itself")
+    expect(notes).toContain("gh release download v1.18.31-desktop --repo kureelvinay/xcode-overlay")
+    expect(notes).not.toContain("sh install.sh")
+  })
+})
+
+describe("contentType for desktop files", () => {
+  test("a Windows installer is binary, not text", () => {
+    expect(contentType("XCode-windows-x64-setup.exe")).toBe("application/octet-stream")
+    expect(contentType("install-windows.ps1")).toBe("text/plain; charset=utf-8")
   })
 })

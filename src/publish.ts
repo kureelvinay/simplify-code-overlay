@@ -38,14 +38,24 @@ export function missingAssets(local: LocalAsset[], remote: RemoteAsset[]): { upl
 export function contentType(name: string): string {
   if (name.endsWith(".zip")) return "application/zip"
   if (name.endsWith(".tar.gz") || name.endsWith(".tgz")) return "application/gzip"
+  if (name.endsWith(".exe")) return "application/octet-stream"
   return "text/plain; charset=utf-8"
 }
 
-export function releaseTitle(brand: Brand, version: string): string {
-  return `${brand.productName} ${brand.tagline} ${version} (terminal version)`
+/** Which bundle folder under dist/<version>/ is being published. */
+export type BundleKind = "package" | "desktop"
+
+/** The desktop bundle gets its own release: both bundles carry an INSTALL.md, a LICENSE and a SHA256SUMS. */
+export function releaseTag(version: string, kind: BundleKind): string {
+  return kind === "desktop" ? `v${version}-desktop` : `v${version}`
 }
 
-export function releaseNotes(brand: Brand, version: string, repo: string): string {
+export function releaseTitle(brand: Brand, version: string, kind: BundleKind = "package"): string {
+  return `${brand.productName} ${brand.tagline} ${version} (${kind === "desktop" ? "desktop app" : "terminal version"})`
+}
+
+export function releaseNotes(brand: Brand, version: string, repo: string, kind: BundleKind = "package"): string {
+  if (kind === "desktop") return desktopNotes(brand, version, repo)
   return `The terminal version of **${brand.productName} ${brand.tagline}** ${version}, as standalone programs. Target machines need no Node and no npm.
 
 Rebranded from [OpenCode v${version}](https://github.com/${brand.upstreamRepo}/releases/tag/v${version}) (MIT licensed; \`LICENSE\` is attached).
@@ -72,5 +82,36 @@ The installer picks the right build for the processor (the "baseline" archive is
 - **\`install.ps1\` was generated on a Mac and has not been run on Windows** by the people who built it. If it misbehaves, unzip the archive and put \`opencode.exe\` anywhere on your PATH; that is all the script does.
 - Verify a download against \`SHA256SUMS\`: \`shasum -a 256 -c SHA256SUMS\` (macOS, Linux) or \`Get-FileHash <file> -Algorithm SHA256\` (Windows).
 - Updating means installing a newer release over the old one. This is the terminal version; the desktop app is packaged separately.
+`
+}
+
+function desktopNotes(brand: Brand, version: string, repo: string): string {
+  const name = brand.productName
+  return `The **${name} ${brand.tagline}** ${version} desktop app: the graphical version, for Mac and Windows.
+
+Rebranded from [OpenCode v${version}](https://github.com/${brand.upstreamRepo}/releases/tag/v${version}) (MIT licensed; \`LICENSE\` is attached).
+
+## Install
+
+Download **the installer for your machine plus the helper script** into one folder, then:
+
+| Machine | Download | Run |
+|---|---|---|
+| Mac, Apple Silicon (M1 and later) | \`${name}-mac-apple-silicon.zip\`, \`install-mac.sh\` | \`sh install-mac.sh\` |
+| Mac, Intel | \`${name}-mac-intel.zip\`, \`install-mac.sh\` | \`sh install-mac.sh\` |
+| Windows, Intel or AMD | \`${name}-windows-x64-setup.exe\`, \`install-windows.ps1\` | \`powershell -ExecutionPolicy Bypass -File .\\install-windows.ps1\` |
+| Windows on ARM | \`${name}-windows-arm64-setup.exe\`, \`install-windows.ps1\` | same |
+
+\`INSTALL.md\` has the details.
+
+**This repository is private**, so downloads need a signed-in browser, or on a machine without one: \`gh release download v${version}-desktop --repo ${repo}\`.
+
+## Know before you install
+
+- **These builds are not signed** by Apple or Microsoft. On a Mac, use the script rather than double-clicking the zip: a downloaded copy unpacked by hand is refused with "${name} is damaged" or "Apple could not verify". On Windows, double-clicking the setup file shows a SmartScreen warning (More info, then Run anyway); the script avoids it. Only install from this release; for a company-wide rollout, sign the builds and use device management instead.
+- **The Windows app was built on a Mac and has not been run on Windows** by the people who built it. It was checked for processor type, name, publisher and the Windows terminal component. Treat the first install as the real test.
+- **The app does not update itself.** Upstream's updater is switched off because it would replace ${name} with stock OpenCode. Updating means installing a newer release over the old one.
+- Verify a download against \`SHA256SUMS\`: \`shasum -a 256 -c SHA256SUMS\` (macOS) or \`Get-FileHash <file> -Algorithm SHA256\` (Windows).
+- The terminal version is a separate release, \`v${version}\`. Both share one configuration file.
 `
 }
