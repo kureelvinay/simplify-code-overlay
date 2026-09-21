@@ -1,0 +1,90 @@
+name: rebrand
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Upstream version to rebrand (e.g. 1.18.31). Leave empty to publish every newer upstream release."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  # Internal registry, e.g. https://artifactory.simplifyx.com/artifactory/api/npm/npm-local/ (trailing slash)
+  NPM_REGISTRY_URL: ${{ secrets.NPM_REGISTRY_URL }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.check.outputs.versions }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Configure npm registry
+        shell: bash
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          [ -n "$NPM_REGISTRY_URL" ] || { echo "NPM_REGISTRY_URL unset" >&2; exit 1; }
+          host="${NPM_REGISTRY_URL#https://}"
+          scope=$(node -p "require('./brand/brand.json').npmScope")
+          # Only our own scope goes through the internal registry; upstream's public deps stay on npmjs.
+          printf '%s:registry=%s\n//%s:_authToken=%s\n' "$scope" "$NPM_REGISTRY_URL" "$host" "$NPM_TOKEN" > ~/.npmrc
+      - run: bun install --frozen-lockfile
+      - id: check
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          if [ -n "$VERSION" ]; then
+            [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "bad version"; exit 1; }
+            echo "versions=[\"$VERSION\"]" >> "$GITHUB_OUTPUT"
+          else
+            bun run src/pipeline.ts --check
+          fi
+
+  release:
+    needs: check
+    if: needs.check.outputs.versions != '[]' && needs.check.outputs.versions != ''
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        version: ${{ fromJson(needs.check.outputs.versions) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version-file: package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Configure npm registry
+        shell: bash
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          [ -n "$NPM_REGISTRY_URL" ] || { echo "NPM_REGISTRY_URL unset" >&2; exit 1; }
+          host="${NPM_REGISTRY_URL#https://}"
+          scope=$(node -p "require('./brand/brand.json').npmScope")
+          # Only our own scope goes through the internal registry; upstream's public deps stay on npmjs.
+          printf '%s:registry=%s\n//%s:_authToken=%s\n' "$scope" "$NPM_REGISTRY_URL" "$host" "$NPM_TOKEN" > ~/.npmrc
+      - run: bun install --frozen-lockfile
+      - run: bun test
+      - name: Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_REPO_TOKEN }}
+          VERSION: ${{ matrix.version }}
+        run: bun run src/pipeline.ts --release --version "$VERSION"
