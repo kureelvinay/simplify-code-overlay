@@ -4,6 +4,7 @@ import { fill, loadBrand, parseBrand, placeholders } from "../src/brand"
 const valid = {
   productName: "XCode",
   tagline: "by SimplifyX",
+  companyName: "SimplifyX",
   npmScope: "@simplifyx",
   npmPackage: "@simplifyx/xcode",
   releaseRepo: "simplifyx/xcode-releases",
@@ -64,5 +65,15 @@ describe("fill", () => {
 
   test("leaves single-brace JSX alone", () => {
     expect(fill("{highlight}x{/highlight}", {})).toBe("{highlight}x{/highlight}")
+  })
+})
+
+describe("companyName", () => {
+  test("is required: it becomes the publisher Windows shows for the desktop app", () => {
+    const { companyName: _drop, ...rest } = loadBrand() as unknown as Record<string, string>
+    expect(() => parseBrand(JSON.stringify(rest))).toThrow('missing or empty "companyName"')
+  })
+  test("is available to transforms", () => {
+    expect(placeholders(loadBrand()).companyName).toBe("SimplifyX")
   })
 })

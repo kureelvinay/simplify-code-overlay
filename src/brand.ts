@@ -4,13 +4,15 @@ import { fileURLToPath } from "node:url"
 export interface Brand {
   productName: string
   tagline: string
+  /** The legal or trading name. Windows shows it as the desktop app's publisher. */
+  companyName: string
   npmScope: string
   npmPackage: string
   releaseRepo: string
   upstreamRepo: string
 }
 
-const REQUIRED: (keyof Brand)[] = ["productName", "tagline", "npmScope", "npmPackage", "releaseRepo", "upstreamRepo"]
+const REQUIRED: (keyof Brand)[] = ["productName", "tagline", "companyName", "npmScope", "npmPackage", "releaseRepo", "upstreamRepo"]
 
 /** Absolute path to the brand/ directory, with a trailing slash. */
 export const BRAND_DIR = fileURLToPath(new URL("../brand/", import.meta.url))
@@ -45,6 +47,7 @@ export function placeholders(brand: Brand): Record<string, string> {
   return {
     productName: brand.productName,
     tagline: brand.tagline,
+    companyName: brand.companyName,
     npmPackage: brand.npmPackage,
     npmPackageEncoded: brand.npmPackage.replace("/", "%2F"),
     releaseRepo: brand.releaseRepo,

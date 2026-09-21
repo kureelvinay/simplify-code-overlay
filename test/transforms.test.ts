@@ -65,9 +65,10 @@ const KEPT_OPENCODE: { file: string; count: number; contains: string; reason: st
   },
   {
     file: "packages/desktop/electron-builder.config.ts",
-    count: 4,
+    count: 5,
     contains: 'productName: "OpenCode Dev"',
-    reason: "dev and beta channel names plus the base protocol name that prod overrides; we only ever build prod",
+    reason:
+      "dev and beta channel names plus the base protocol name that prod overrides; we only ever build prod. The fifth is ours: the copyright line credits OpenCode's contributors, whose MIT-licensed code this is",
   },
   {
     file: "packages/desktop/src/main/index.ts",
@@ -102,9 +103,9 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and seven entries: sixty-three file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(107)
-    expect(UPSTREAM_FILES).toHaveLength(63)
+  test("has one hundred and eight entries: sixty-four file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(108)
+    expect(UPSTREAM_FILES).toHaveLength(64)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
       "packages/desktop/src/renderer/i18n/*.ts",
@@ -578,5 +579,15 @@ describe("desktop cross-build target", () => {
     const cfg = read("packages/desktop/electron.vite.config.ts")
     expect(cfg).toContain("process.env.OVERLAY_TARGET_PLATFORM ?? process.platform")
     expect(cfg).toContain("process.env.OVERLAY_TARGET_ARCH ?? process.arch")
+  })
+})
+
+describe("desktop publisher", () => {
+  test("Windows shows the company as publisher, and upstream keeps the copyright it owns", () => {
+    applyTransforms(root, TRANSFORMS, vars, brandDir)
+    const pkg = JSON.parse(read("packages/desktop/package.json"))
+    expect(pkg.author.name).toBe("SimplifyX")
+    const cfg = read("packages/desktop/electron-builder.config.ts")
+    expect(cfg).toContain('copyright: "Copyright © OpenCode contributors, MIT License. Distributed by SimplifyX.",')
   })
 })

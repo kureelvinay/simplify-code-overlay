@@ -458,7 +458,13 @@ export const TRANSFORMS: Transform[] = [
   // ---------------------------------------------------------------------------
 
   // 39-42. Packaging identity. The opencode:// scheme is kept so deep links keep working.
-  { kind: "edit", file: `${DESKTOP}/electron-builder.config.ts`, find: 'productName: "OpenCode",', replace: 'productName: "{{productName}}",', count: 1 },
+  {
+    kind: "edit",
+    file: `${DESKTOP}/electron-builder.config.ts`,
+    find: 'productName: "OpenCode",',
+    replace: 'productName: "{{productName}}",\n        copyright: "Copyright © OpenCode contributors, MIT License. Distributed by {{companyName}}.",',
+    count: 1,
+  },
   {
     kind: "edit",
     file: `${DESKTOP}/electron-builder.config.ts`,
@@ -796,6 +802,10 @@ export const TRANSFORMS: Transform[] = [
     replace: "files under .opencode/, or files under ~/.config/opencode/ (in this build also {{productSlug}}.json, {{productSlug}}.jsonc, files under .{{productSlug}}/ or ~/.config/{{productSlug}}/).",
     count: 1,
   },
+  // 108. Publisher. electron-builder takes CompanyName (Windows file properties, Add or remove
+  // programs) and the default copyright line from package.json's author. The company distributes the
+  // app, so it is the publisher; the copyright stays upstream's, whose MIT-licensed code this is.
+  { kind: "json", file: `${DESKTOP}/package.json`, set: { "author.name": "{{companyName}}" } },
   // 107. Cross-building the desktop app. Upstream bakes the HOST's terminal module
   // (@lydell/node-pty-<platform>-<arch>) into the app, which is right on its per-OS CI runners and
   // wrong when one Mac builds the Intel-Mac and Windows apps too. Unset, behaviour is upstream's.

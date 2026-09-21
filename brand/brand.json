@@ -1,6 +1,7 @@
 {
   "productName": "XCode",
   "tagline": "by SimplifyX",
+  "companyName": "SimplifyX",
   "npmScope": "@simplifyx",
   "npmPackage": "@simplifyx/xcode",
   "releaseRepo": "simplifyx/xcode-releases",
