@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Publishes a --package bundle as a GitHub Release.
 //
-//   bun run script/publish-bundle.ts --version 1.18.31 --repo owner/name [--bundle package|desktop] [--target <branch-or-sha>]
+//   bun run script/publish-bundle.ts --version 1.18.31 --repo owner/name [--bundle package|desktop] [--tag <tag>] [--target <branch-or-sha>]
 //
 // --bundle package (default) publishes dist/<v>/package as v<v>; --bundle desktop publishes dist/<v>/desktop as v<v>-desktop.
 //
@@ -24,7 +24,7 @@ const repo = arg("repo")
 const target = arg("target")
 const kind = (arg("bundle") ?? "package") as BundleKind
 if (!version || !repo || (kind !== "package" && kind !== "desktop")) {
-  console.error("usage: bun run script/publish-bundle.ts --version X.Y.Z --repo owner/name [--bundle package|desktop] [--target <branch-or-sha>]")
+  console.error("usage: bun run script/publish-bundle.ts --version X.Y.Z --repo owner/name [--bundle package|desktop] [--tag <tag>] [--target <branch-or-sha>]")
   process.exit(1)
 }
 
@@ -46,7 +46,7 @@ async function token(): Promise<string> {
 const auth = { Authorization: `Bearer ${await token()}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" }
 const api = `https://api.github.com/repos/${repo}`
 const brand = loadBrand()
-const tag = releaseTag(version, kind)
+const tag = arg("tag") ?? releaseTag(version, kind)
 
 async function json<T>(res: Response, what: string): Promise<T> {
   if (!res.ok) throw new Error(`${what}: HTTP ${res.status} ${(await res.text()).slice(0, 300)}`)
@@ -68,7 +68,7 @@ if (existing.status === 404) {
     await fetch(`${api}/releases`, {
       method: "POST",
       headers: auth,
-      body: JSON.stringify({ tag_name: tag, target_commitish: target, name: releaseTitle(brand, version, kind), body: releaseNotes(brand, version, repo, kind) }),
+      body: JSON.stringify({ tag_name: tag, target_commitish: target, name: releaseTitle(brand, version, kind), body: releaseNotes(brand, version, repo, kind, tag) }),
     }),
     "create release",
   )

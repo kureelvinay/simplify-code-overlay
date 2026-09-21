@@ -90,3 +90,10 @@ describe("release notes follow the brand", () => {
     for (const notes of [terminal, desktop]) expect(notes.toLowerCase()).not.toContain("xcode")
   })
 })
+
+describe("a custom tag", () => {
+  test("is what the download command in the notes uses, so the notes never point at a different release", () => {
+    expect(releaseNotes(brand, "1.18.31", "o/r", "package", "simplify-code-v1.18.31")).toContain("gh release download simplify-code-v1.18.31 --repo o/r")
+    expect(releaseNotes(brand, "1.18.31", "o/r", "desktop", "simplify-code-desktop-v1.18.31")).toContain("gh release download simplify-code-desktop-v1.18.31 --repo o/r")
+  })
+})

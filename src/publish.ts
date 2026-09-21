@@ -55,8 +55,8 @@ export function releaseTitle(brand: Brand, version: string, kind: BundleKind = "
   return `${brand.productName} ${brand.tagline} ${version} (${kind === "desktop" ? "desktop app" : "terminal version"})`
 }
 
-export function releaseNotes(brand: Brand, version: string, repo: string, kind: BundleKind = "package"): string {
-  if (kind === "desktop") return desktopNotes(brand, version, repo)
+export function releaseNotes(brand: Brand, version: string, repo: string, kind: BundleKind = "package", tag: string = releaseTag(version, kind)): string {
+  if (kind === "desktop") return desktopNotes(brand, version, repo, tag)
   const pkg = brand.npmPackage.split("/")[1] // platform packages, and so archives, are named after it
   return `The terminal version of **${brand.productName} ${brand.tagline}** ${version}, as standalone programs. Target machines need no Node and no npm.
 
@@ -76,7 +76,7 @@ Download **the archive for your machine plus the installer** into one folder, th
 
 The installer picks the right build for the processor (the "baseline" archive is for older processors without AVX2), installs the \`opencode\` command for the current user without administrator rights, and prints the version. \`INSTALL.md\` has the details. Afterwards \`opencode --version\` should print \`${version}\`.
 
-**This repository is private**, so downloads need a signed-in browser, or on a machine without one: \`gh release download v${version} --repo ${repo}\`.
+**This repository is private**, so downloads need a signed-in browser, or on a machine without one: \`gh release download ${tag} --repo ${repo}\`.
 
 ## Know before you install
 
@@ -87,7 +87,7 @@ The installer picks the right build for the processor (the "baseline" archive is
 `
 }
 
-function desktopNotes(brand: Brand, version: string, repo: string): string {
+function desktopNotes(brand: Brand, version: string, repo: string, tag: string): string {
   const name = brand.productName
   const file = (platform: "darwin" | "win32", arch: "arm64" | "x64") => desktopArtifactName(brand, { platform, arch })
   return `The **${name} ${brand.tagline}** ${version} desktop app: the graphical version, for Mac and Windows.
@@ -107,7 +107,7 @@ Download **the installer for your machine plus the helper script** into one fold
 
 \`INSTALL.md\` has the details.
 
-**This repository is private**, so downloads need a signed-in browser, or on a machine without one: \`gh release download v${version}-desktop --repo ${repo}\`.
+**This repository is private**, so downloads need a signed-in browser, or on a machine without one: \`gh release download ${tag} --repo ${repo}\`.
 
 ## Know before you install
 
@@ -115,6 +115,6 @@ Download **the installer for your machine plus the helper script** into one fold
 - **The Windows app was built on a Mac and has not been run on Windows** by the people who built it. It was checked for processor type, name, publisher and the Windows terminal component. Treat the first install as the real test.
 - **The app does not update itself.** Upstream's updater is switched off because it would replace ${name} with stock OpenCode. Updating means installing a newer release over the old one.
 - Verify a download against \`SHA256SUMS\`: \`shasum -a 256 -c SHA256SUMS\` (macOS) or \`Get-FileHash <file> -Algorithm SHA256\` (Windows).
-- The terminal version is a separate release, \`v${version}\`. Both share one configuration file.
+- The terminal version is a separate release. Both share one configuration file.
 `
 }
