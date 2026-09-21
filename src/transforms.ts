@@ -796,6 +796,17 @@ export const TRANSFORMS: Transform[] = [
     replace: "files under .opencode/, or files under ~/.config/opencode/ (in this build also {{productSlug}}.json, {{productSlug}}.jsonc, files under .{{productSlug}}/ or ~/.config/{{productSlug}}/).",
     count: 1,
   },
+  // 107. Cross-building the desktop app. Upstream bakes the HOST's terminal module
+  // (@lydell/node-pty-<platform>-<arch>) into the app, which is right on its per-OS CI runners and
+  // wrong when one Mac builds the Intel-Mac and Windows apps too. Unset, behaviour is upstream's.
+  {
+    kind: "edit",
+    file: `${DESKTOP}/electron.vite.config.ts`,
+    find: "const nodePtyPkg = `@lydell/node-pty-${process.platform}-${process.arch}`",
+    replace:
+      "const nodePtyPkg = `@lydell/node-pty-${process.env.OVERLAY_TARGET_PLATFORM ?? process.platform}-${process.env.OVERLAY_TARGET_ARCH ?? process.arch}`",
+    count: 1,
+  },
 ]
 
 /** Every upstream file targeted by name, root-relative. */

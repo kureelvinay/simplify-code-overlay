@@ -9,7 +9,8 @@ import { TRANSFORMS } from "./transforms"
 import { binaryName, hostPackage, packDir, rebrandPlatformPackages, writeMetaPackage } from "./package"
 import { buildMacApp } from "./launcher"
 import { archiveBinaries, writeBundle } from "./bundle"
-import { buildDesktop, DesktopBuildError, installDesktop, verifyDesktop } from "./desktop"
+import { buildDesktop, buildDesktopTargets, DESKTOP_TARGETS, DesktopBuildError, installDesktop, verifyDesktop, verifyWindowsDesktop } from "./desktop"
+import { writeDesktopBundle } from "./desktop-bundle"
 
 export const EXIT = { input: 1, drift: 2, toolchain: 3, build: 4, smoke: 5, publish: 6 } as const
 
@@ -29,15 +30,15 @@ export class PipelineError extends Error {
 }
 
 export interface Args {
-  mode: "local" | "release" | "check" | "launcher" | "desktop" | "package"
+  mode: "local" | "release" | "check" | "launcher" | "desktop" | "desktop-package" | "package"
   version?: string
   skipWebUi: boolean
 }
 
-const USAGE = "usage: bun run src/pipeline.ts --local|--package|--release|--check|--desktop|--launcher [--version X.Y.Z] [--skip-web-ui]"
+const USAGE = "usage: bun run src/pipeline.ts --local|--package|--desktop-package|--release|--check|--desktop|--launcher [--version X.Y.Z] [--skip-web-ui]"
 
 export function parseArgs(argv: string[]): Args {
-  const mode = (["--local", "--package", "--release", "--check", "--desktop", "--launcher"] as const).find((m) => argv.includes(m))
+  const mode = (["--local", "--package", "--desktop-package", "--release", "--check", "--desktop", "--launcher"] as const).find((m) => argv.includes(m))
   if (!mode) throw new PipelineError(USAGE, EXIT.input)
   const i = argv.indexOf("--version")
   let version: string | undefined
@@ -349,6 +350,30 @@ export async function desktop(brand: Brand, version: string): Promise<void> {
 }
 
 /**
+ * macOS only: build the desktop app for both Mac and both Windows processor types on this Mac and
+ * write a hand-deployable bundle. Nothing is installed on this machine.
+ */
+export async function desktopPackage(brand: Brand, version: string): Promise<void> {
+  if (process.platform !== "darwin") throw new PipelineError("--desktop-package cross-builds from macOS (it needs codesign and hdiutil)", EXIT.input)
+  const { upstreamRoot, env } = await checkout(brand, version)
+  try {
+    const built = await buildDesktopTargets(upstreamRoot, brand, version, env, DESKTOP_TARGETS)
+    console.log("\n== desktop: verify ==")
+    for (const b of built) {
+      if (b.target.platform === "darwin") await verifyDesktop(b.path, brand, b.target)
+      else verifyWindowsDesktop(b.path, brand, b.target)
+    }
+    console.log("\n== desktop: bundle ==")
+    const out = path.join(DIST, version, "desktop")
+    for (const f of await writeDesktopBundle(built, out, brand, version, path.join(upstreamRoot, "LICENSE"))) console.log(`  ${path.relative(ROOT, f)}`)
+    console.log(`\n${brand.productName} desktop ${version} packaged: ${out}\n  hand this folder to a machine and follow INSTALL.md`)
+  } catch (e) {
+    if (e instanceof DesktopBuildError) throw new PipelineError(e.message, e.step === "verify" ? EXIT.smoke : EXIT.build)
+    throw e
+  }
+}
+
+/**
  * Build every target and write a hand-deployable bundle of the terminal version: standalone binaries,
  * an installer per platform, a guide and checksums. No registry, Node or npm needed on the targets.
  */
@@ -385,6 +410,7 @@ async function main() {
   const version = args.version ?? (await latestUpstreamVersion(brand))
   if (args.mode === "local") return local(brand, version, args.skipWebUi)
   if (args.mode === "desktop") return desktop(brand, version)
+  if (args.mode === "desktop-package") return desktopPackage(brand, version)
   if (args.mode === "package") return packageBundle(brand, version)
   return release(brand, version)
 }

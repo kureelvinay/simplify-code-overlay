@@ -102,9 +102,9 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and six entries: sixty-two file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(106)
-    expect(UPSTREAM_FILES).toHaveLength(62)
+  test("has one hundred and seven entries: sixty-three file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(107)
+    expect(UPSTREAM_FILES).toHaveLength(63)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
       "packages/desktop/src/renderer/i18n/*.ts",
@@ -569,5 +569,14 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
     expect((error as TransformError).expected).toBe(2)
     expect((error as TransformError).actual).toBe(1)
     expect(read("packages/tui/src/logo.ts")).toBe(readFileSync(path.join(FIXTURES, "packages/tui/src/logo.ts"), "utf8"))
+  })
+})
+
+describe("desktop cross-build target", () => {
+  test("the terminal module baked into the desktop app follows the build target, defaulting to the host", () => {
+    applyTransforms(root, TRANSFORMS, vars, brandDir)
+    const cfg = read("packages/desktop/electron.vite.config.ts")
+    expect(cfg).toContain("process.env.OVERLAY_TARGET_PLATFORM ?? process.platform")
+    expect(cfg).toContain("process.env.OVERLAY_TARGET_ARCH ?? process.arch")
   })
 })
