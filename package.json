@@ -1,0 +1,14 @@
+{
+  "name": "xcode-overlay",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.14",
+  "scripts": {
+    "test": "bun test",
+    "pipeline": "bun run src/pipeline.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.14",
+    "node-gyp": "^10.1.0"
+  }
+}

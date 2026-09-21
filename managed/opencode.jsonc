@@ -1,0 +1,66 @@
+// Company-managed configuration for XCode by SimplifyX (OpenCode).
+//
+// Installed by IT, not by developers. It loads above user and project config and cannot be
+// overridden locally. Where it goes, and how to check it before and after deploying: README.md.
+//
+// Before deploying, run:  bun run script/check-managed.ts
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // 1. The one provider developers may use: the company AI gateway.
+  "provider": {
+    "company-gateway": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Company Gateway",
+      "options": {
+        // REQUIRED: the gateway's real address. The config this was drafted from used
+        // http://127.0.0.1:4000/v1, a proxy on one laptop, which cannot work company-wide.
+        // The checker rejects placeholders, plain http and loopback addresses.
+        "baseURL": "https://REPLACE-WITH-YOUR-GATEWAY/v1",
+
+        // Each developer's own gateway key, read from a file only they can read
+        // (chmod 600). Never put a key in this file: a managed config is readable by every
+        // user on every machine. A file works for the desktop app as well as the terminal,
+        // which an environment variable does not always do for apps launched from the Dock.
+        "apiKey": "{file:~/.config/simplifyx/gateway-key}"
+      },
+      "models": {
+        "bulk": { "name": "Bulk — GLM-5.2 (default)" },
+        "bulk-light": { "name": "Bulk Light — DeepSeek V4-Flash" },
+        "escalate": { "name": "Escalation — DeepSeek V4-Pro" },
+        "frontier": { "name": "Frontier — Claude Sonnet (senior track only)" }
+      },
+      // Only these appear in the model picker, even if the gateway serves more.
+      "whitelist": ["bulk", "bulk-light", "escalate", "frontier"]
+    }
+  },
+
+  // 2. Defaults, so a fresh install works without anyone choosing a model.
+  "model": "company-gateway/bulk",
+  "small_model": "company-gateway/bulk-light",
+
+  // 3. Conversations never leave the company: /share would upload them to opencode.ai.
+  "share": "disabled",
+
+  // 4. New versions come from the rebrand pipeline, never from self-update.
+  "autoupdate": false,
+
+  // 5. Provider lock, in two parts, because upstream is mid-migration between two mechanisms.
+  //    A provider a developer adds to their own config, or an API key they already have for
+  //    another service, will not be usable.
+  //
+  //    a) enabled_providers is what the released 1.18.x CLI and desktop app enforce today. Tested
+  //       against the real binary: without it, the built-in "opencode" provider (OpenCode Zen,
+  //       which sends prompts outside the company) stayed in the model list even with (b) present.
+  "enabled_providers": ["company-gateway"],
+
+  //    b) policies are upstream's documented successor. Deny everything, then allow the gateway:
+  //       the last matching rule wins, so the deny must come first. Keeping both means the lock
+  //       survives the release where upstream switches over.
+  "experimental": {
+    "policies": [
+      { "effect": "deny", "action": "provider.use", "resource": "*" },
+      { "effect": "allow", "action": "provider.use", "resource": "company-gateway" }
+    ]
+  }
+}
