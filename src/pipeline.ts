@@ -8,6 +8,7 @@ import { applyTransforms, cloneUpstream, TransformError } from "./rebrand"
 import { TRANSFORMS } from "./transforms"
 import { binaryName, hostPackage, packDir, rebrandPlatformPackages, writeMetaPackage } from "./package"
 import { buildMacApp } from "./launcher"
+import { archiveBinaries, writeBundle } from "./bundle"
 import { buildDesktop, DesktopBuildError, installDesktop, verifyDesktop } from "./desktop"
 
 export const EXIT = { input: 1, drift: 2, toolchain: 3, build: 4, smoke: 5, publish: 6 } as const
@@ -28,15 +29,15 @@ export class PipelineError extends Error {
 }
 
 export interface Args {
-  mode: "local" | "release" | "check" | "launcher" | "desktop"
+  mode: "local" | "release" | "check" | "launcher" | "desktop" | "package"
   version?: string
   skipWebUi: boolean
 }
 
-const USAGE = "usage: bun run src/pipeline.ts --local|--release|--check|--desktop|--launcher [--version X.Y.Z] [--skip-web-ui]"
+const USAGE = "usage: bun run src/pipeline.ts --local|--package|--release|--check|--desktop|--launcher [--version X.Y.Z] [--skip-web-ui]"
 
 export function parseArgs(argv: string[]): Args {
-  const mode = (["--local", "--release", "--check", "--desktop", "--launcher"] as const).find((m) => argv.includes(m))
+  const mode = (["--local", "--package", "--release", "--check", "--desktop", "--launcher"] as const).find((m) => argv.includes(m))
   if (!mode) throw new PipelineError(USAGE, EXIT.input)
   const i = argv.indexOf("--version")
   let version: string | undefined
@@ -262,24 +263,6 @@ async function signHook(distDir: string): Promise<void> {
 }
 
 /** Archives every platform's bin/ for the GitHub release. Names what it could not archive on `failed`. */
-async function archiveBinaries(platforms: { dir: string; name: string }[], outDir: string, failed: string[]): Promise<string[]> {
-  const files: string[] = []
-  for (const p of platforms) {
-    const base = p.name.split("/").pop()!
-    const bin = path.join(p.dir, "bin")
-    const linux = base.includes("linux")
-    const file = path.join(outDir, `${base}.${linux ? "tar.gz" : "zip"}`)
-    const r = linux ? await $`tar -czf ${file} -C ${bin} .`.nothrow() : await $`zip -qr ${file} .`.cwd(bin).nothrow()
-    if (r.exitCode !== 0) {
-      console.log(`  warning: could not archive ${base} (exit ${r.exitCode})`)
-      failed.push(path.basename(file))
-      continue
-    }
-    files.push(file)
-  }
-  return files
-}
-
 async function release(brand: Brand, version: string): Promise<void> {
   // Publishing to npm is irreversible; a bad releaseRepo would only surface afterwards. Check it first.
   const repo = await $`gh repo view ${brand.releaseRepo}`.quiet().nothrow()
@@ -323,7 +306,10 @@ async function release(brand: Brand, version: string): Promise<void> {
   }
 
   console.log("\n== github release ==")
-  const archives = await archiveBinaries(platforms, out, failed)
+  const archived = await archiveBinaries(platforms, out)
+  for (const name of archived.failed) console.log(`  warning: could not archive ${name}`)
+  failed.push(...archived.failed)
+  const archives = archived.files
   const tag = `v${version}`
   const view = await $`gh release view ${tag} --repo ${brand.releaseRepo}`.quiet().nothrow()
   const notes = `${brand.productName} ${brand.tagline}, rebranded from https://github.com/${brand.upstreamRepo}/releases/tag/${tag}`
@@ -362,6 +348,35 @@ export async function desktop(brand: Brand, version: string): Promise<void> {
   }
 }
 
+/**
+ * Build every target and write a hand-deployable bundle of the terminal version: standalone binaries,
+ * an installer per platform, a guide and checksums. No registry, Node or npm needed on the targets.
+ */
+export async function packageBundle(brand: Brand, version: string): Promise<void> {
+  const { upstreamRoot, distDir } = await prepare(brand, version, { single: false, skipWebUi: false })
+  const platforms = rebrandPlatformPackages(distDir, brand, upstreamRoot)
+  await smokeTest(path.join(hostPackage(platforms).dir, "bin", binaryName()), version, brand)
+  await signHook(distDir)
+
+  console.log("\n== bundle ==")
+  const out = path.join(DIST, version, "package")
+  const bundle = await writeBundle(platforms, out, brand, version, path.join(upstreamRoot, "LICENSE"))
+  for (const f of bundle.files) console.log(`  ${path.relative(ROOT, f)}`)
+  if (bundle.failed.length) throw new PipelineError(`could not archive: ${bundle.failed.join(", ")}`, EXIT.build)
+
+  // Prove the installer on this machine, from the bundle exactly as it will be shipped.
+  if (process.platform !== "win32") {
+    console.log("\n== installer self-test (into a temporary folder) ==")
+    const probe = path.join(out, ".selftest")
+    const envVar = `${placeholders(brand).productSlug.toUpperCase().replace(/[^A-Z0-9]/g, "_")}_INSTALL_DIR`
+    const r = await $`sh ${path.join(out, "install.sh")}`.env({ ...process.env, [envVar]: probe }).nothrow()
+    const ok = r.exitCode === 0 && r.stdout.toString().includes(version)
+    rmSync(probe, { recursive: true, force: true })
+    if (!ok) throw new PipelineError(`install.sh self-test failed (exit ${r.exitCode})`, EXIT.smoke)
+  }
+  console.log(`\n${brand.productName} ${version} packaged: ${out}\n  hand this folder to a machine and follow INSTALL.md`)
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2))
   const brand = loadBrand()
@@ -370,6 +385,7 @@ async function main() {
   const version = args.version ?? (await latestUpstreamVersion(brand))
   if (args.mode === "local") return local(brand, version, args.skipWebUi)
   if (args.mode === "desktop") return desktop(brand, version)
+  if (args.mode === "package") return packageBundle(brand, version)
   return release(brand, version)
 }
 
