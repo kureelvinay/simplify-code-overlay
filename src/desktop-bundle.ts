@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs"
+import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { $ } from "bun"
@@ -7,40 +7,40 @@ import { sha256Sums } from "./bundle"
 import { DesktopBuildError, type DesktopTarget } from "./desktop"
 
 /**
- * The hand-deployable bundle of the desktop app: a disk image per Mac processor, upstream's NSIS
+ * The hand-deployable bundle of the desktop app: a zip per Mac processor, upstream's NSIS
  * installer per Windows processor, a helper script per OS, a guide and checksums. Nothing here is
  * signed by Apple or Microsoft, and the scripts and the guide say so.
  */
 
 export function desktopArtifactName(brand: Brand, target: DesktopTarget): string {
-  if (target.platform === "darwin") return `${brand.productName}-mac-${target.arch === "arm64" ? "apple-silicon" : "intel"}.dmg`
+  if (target.platform === "darwin") return `${brand.productName}-mac-${target.arch === "arm64" ? "apple-silicon" : "intel"}.zip`
   return `${brand.productName}-windows-${target.arch}-setup.exe`
 }
 
 const envPrefix = (brand: Brand) => `${placeholders(brand).productSlug.toUpperCase().replace(/[^A-Z0-9]/g, "_")}_DESKTOP`
 
-/** A compressed disk image holding the app and the usual drag-to-Applications shortcut. */
-export async function makeDmg(app: string, out: string, volumeName: string): Promise<void> {
-  const staging = mkdtempSync(path.join(tmpdir(), "desktop-dmg-"))
+/**
+ * A zip, not a disk image. Building a disk image means mounting a scratch volume, which some Macs
+ * (Spotlight, endpoint security) will not let go of again: `hdiutil create` then fails with "Resource
+ * busy". The variant that mounts nothing, `hdiutil makehybrid`, stamps Finder information on every
+ * file, which invalidates the code signature. ditto's zip keeps the signature byte for byte.
+ */
+export async function makeMacZip(app: string, out: string): Promise<void> {
+  rmSync(out, { force: true })
+  const r = await $`ditto -c -k --sequesterRsrc --keepParent ${app} ${out}`.quiet().nothrow()
+  if (r.exitCode !== 0) throw new DesktopBuildError("zip", `ditto exit ${r.exitCode}: ${r.stderr.toString().trim()}`)
+}
+
+/** Unpack a shipped Mac archive and check the signature inside: an app with a broken signature does not start on Apple Silicon. */
+export async function verifyMacZip(zip: string, appName: string): Promise<void> {
+  const dir = mkdtempSync(path.join(tmpdir(), "desktop-zip-"))
   try {
-    // ditto, not cp: it keeps symlinks inside the app's frameworks and the ad-hoc signature intact
-    const copied = await $`ditto ${app} ${path.join(staging, path.basename(app))}`.quiet().nothrow()
-    if (copied.exitCode !== 0) throw new DesktopBuildError("dmg", `ditto exit ${copied.exitCode}`)
-    symlinkSync("/Applications", path.join(staging, "Applications"))
-    // makehybrid + convert rather than `hdiutil create -srcfolder`: create mounts a scratch image
-    // behind the scenes, which fails with "Resource busy" on some Macs; makehybrid mounts nothing.
-    const raw = path.join(staging, "..", `${path.basename(staging)}-raw.dmg`)
-    try {
-      const made = await $`hdiutil makehybrid -hfs -hfs-volume-name ${volumeName} -o ${raw} ${staging}`.quiet().nothrow()
-      if (made.exitCode !== 0) throw new DesktopBuildError("dmg", `hdiutil makehybrid exit ${made.exitCode}: ${made.stderr.toString().trim()}`)
-      rmSync(out, { force: true })
-      const packed = await $`hdiutil convert ${raw} -format UDZO -o ${out}`.quiet().nothrow()
-      if (packed.exitCode !== 0) throw new DesktopBuildError("dmg", `hdiutil convert exit ${packed.exitCode}: ${packed.stderr.toString().trim()}`)
-    } finally {
-      rmSync(raw, { force: true })
-    }
+    const x = await $`ditto -x -k ${zip} ${dir}`.quiet().nothrow()
+    if (x.exitCode !== 0) throw new DesktopBuildError("verify", `${path.basename(zip)} does not unpack (ditto exit ${x.exitCode})`)
+    const r = await $`codesign --verify --deep --strict ${path.join(dir, appName)}`.quiet().nothrow()
+    if (r.exitCode !== 0) throw new DesktopBuildError("verify", `${path.basename(zip)}: signature invalid after packing: ${r.stderr.toString().trim()}`)
   } finally {
-    rmSync(staging, { recursive: true, force: true })
+    rmSync(dir, { recursive: true, force: true })
   }
 }
 
@@ -52,21 +52,21 @@ export function installMacSh(brand: Brand, version: string): string {
 #
 #   sh install-mac.sh
 #
-# Run it from the folder that holds the .dmg files. It picks the disk image for this Mac's processor,
-# copies ${name}.app into /Applications (or ~/Applications without administrator rights), and clears
+# Run it from the folder that holds the .zip files. It picks the archive for this Mac's processor,
+# unpacks ${name}.app into /Applications (or ~/Applications without administrator rights), and clears
 # the "downloaded from the internet" mark. That last step matters: the app is not signed by Apple, so
 # without it macOS refuses to open the app. Set ${dirVar} to install somewhere else.
 set -eu
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 case "$(uname -m)" in
-  arm64) DMG="${desktopArtifactName(brand, { platform: "darwin", arch: "arm64" })}" ;;
-  x86_64) DMG="${desktopArtifactName(brand, { platform: "darwin", arch: "x64" })}" ;;
+  arm64) ZIP="${desktopArtifactName(brand, { platform: "darwin", arch: "arm64" })}" ;;
+  x86_64) ZIP="${desktopArtifactName(brand, { platform: "darwin", arch: "x64" })}" ;;
   *) echo "unsupported processor: $(uname -m)" >&2; exit 1 ;;
 esac
 # an Intel terminal on an Apple Silicon Mac reports x86_64; the hardware decides
-if [ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = "1" ]; then DMG="${desktopArtifactName(brand, { platform: "darwin", arch: "arm64" })}"; fi
-[ -f "$HERE/$DMG" ] || { echo "missing $HERE/$DMG: download it into the same folder as this script" >&2; exit 1; }
+if [ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = "1" ]; then ZIP="${desktopArtifactName(brand, { platform: "darwin", arch: "arm64" })}"; fi
+[ -f "$HERE/$ZIP" ] || { echo "missing $HERE/$ZIP: download it into the same folder as this script" >&2; exit 1; }
 
 if [ -n "\${${dirVar}:-}" ]; then APPS="$${dirVar}"
 elif [ -w /Applications ]; then APPS=/Applications
@@ -74,10 +74,11 @@ else APPS="$HOME/Applications"; fi
 mkdir -p "$APPS"
 DEST="$APPS/${name}.app"
 
-MNT=$(mktemp -d "\${TMPDIR:-/tmp}/${placeholders(brand).productSlug}-desktop.XXXXXX")
-cleanup() { hdiutil detach "$MNT" -quiet 2>/dev/null || hdiutil detach "$MNT" -force -quiet 2>/dev/null || true; rmdir "$MNT" 2>/dev/null || true; }
-trap cleanup EXIT INT TERM
-hdiutil attach "$HERE/$DMG" -nobrowse -readonly -noverify -mountpoint "$MNT" -quiet
+TMP=$(mktemp -d "\${TMPDIR:-/tmp}/${placeholders(brand).productSlug}-desktop.XXXXXX")
+trap 'rm -rf "$TMP"' EXIT INT TERM
+# ditto, not unzip: it restores the app exactly, which its code signature depends on
+ditto -x -k "$HERE/$ZIP" "$TMP"
+[ -d "$TMP/${name}.app" ] || { echo "$ZIP does not contain ${name}.app" >&2; exit 1; }
 
 # Quit a running copy first, matched by its full path. Never by name: Apple's Xcode is a different app.
 if pgrep -f "$DEST/Contents/MacOS/" >/dev/null 2>&1; then
@@ -87,7 +88,7 @@ if pgrep -f "$DEST/Contents/MacOS/" >/dev/null 2>&1; then
 fi
 
 rm -rf "$DEST"
-ditto "$MNT/${name}.app" "$DEST"
+ditto "$TMP/${name}.app" "$DEST"
 xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
 
 echo "${name} ${version} installed: $DEST"
@@ -145,7 +146,7 @@ sh install-mac.sh
 
 It copies ${name}.app into /Applications (or ~/Applications if you are not an administrator) and opens normally afterwards.
 
-**Use the script rather than dragging the app out of the disk image.** The app is not signed by Apple. A copy that was downloaded and dragged across is refused by macOS with "${name} is damaged and can't be opened" or "Apple could not verify". The script clears the download mark that causes this. If you already dragged it across, this repairs it:
+**Use the script rather than double-clicking the zip.** The app is not signed by Apple. A copy that was downloaded and unpacked by hand is refused by macOS with "${name} is damaged and can't be opened" or "Apple could not verify". The script clears the download mark that causes this. If you already unpacked it by hand and moved it to Applications, this repairs it:
 
 \`\`\`bash
 xattr -dr com.apple.quarantine /Applications/${name}.app
@@ -179,7 +180,7 @@ It installs for the current user only, without administrator rights, and adds ${
 `
 }
 
-/** Turn built targets into the bundle folder. Mac apps become disk images; Windows installers are copied under a clearer name. */
+/** Turn built targets into the bundle folder. Mac apps become zips, each checked for a valid signature after packing; Windows installers are copied under a clearer name. */
 export async function writeDesktopBundle(
   built: { target: DesktopTarget; path: string }[],
   outDir: string,
@@ -192,8 +193,10 @@ export async function writeDesktopBundle(
   const artifacts: string[] = []
   for (const { target, path: source } of built) {
     const name = desktopArtifactName(brand, target)
-    if (target.platform === "darwin") await makeDmg(source, path.join(outDir, name), brand.productName)
-    else copyFileSync(source, path.join(outDir, name))
+    if (target.platform === "darwin") {
+      await makeMacZip(source, path.join(outDir, name))
+      await verifyMacZip(path.join(outDir, name), path.basename(source))
+    } else copyFileSync(source, path.join(outDir, name))
     artifacts.push(name)
   }
   const names = [...artifacts]

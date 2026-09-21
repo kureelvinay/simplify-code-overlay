@@ -354,7 +354,7 @@ export async function desktop(brand: Brand, version: string): Promise<void> {
  * write a hand-deployable bundle. Nothing is installed on this machine.
  */
 export async function desktopPackage(brand: Brand, version: string): Promise<void> {
-  if (process.platform !== "darwin") throw new PipelineError("--desktop-package cross-builds from macOS (it needs codesign and hdiutil)", EXIT.input)
+  if (process.platform !== "darwin") throw new PipelineError("--desktop-package cross-builds from macOS (it needs codesign and ditto)", EXIT.input)
   const { upstreamRoot, env } = await checkout(brand, version)
   try {
     const built = await buildDesktopTargets(upstreamRoot, brand, version, env, DESKTOP_TARGETS)

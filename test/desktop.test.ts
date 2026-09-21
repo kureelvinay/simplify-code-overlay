@@ -69,6 +69,9 @@ describe("peMachine", () => {
     expect(peMachine(pe(0x8664))).toBe("x64")
     expect(peMachine(pe(0xaa64))).toBe("arm64")
   })
+  test("recognises 32-bit programs: an NSIS installer is one whatever it installs, so it runs on every Windows", () => {
+    expect(peMachine(pe(0x014c))).toBe("x86")
+  })
   test("rejects anything that is not a Windows program", () => {
     expect(peMachine(Buffer.from("#!/bin/sh\necho hi\n"))).toBeUndefined()
     expect(peMachine(Buffer.alloc(0))).toBeUndefined()

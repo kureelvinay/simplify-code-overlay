@@ -51,6 +51,9 @@ bun run src/pipeline.ts --check                     # upstream versions not yet 
 bun run script/e2e-config.ts                        # after --local: 8 config scenarios against the real binary
 bun run src/pipeline.ts --local --version 1.18.31   # build + install on this machine
 bun run src/pipeline.ts --desktop --version 1.18.31 # macOS: build + install the desktop app
+bun run src/pipeline.ts --package --version 1.18.31 # terminal version, all 12 targets -> dist/<v>/package
+bun run src/pipeline.ts --desktop-package --version 1.18.31 # desktop app, Mac + Windows -> dist/<v>/desktop
+bun run script/publish-bundle.ts --version 1.18.31 --repo owner/name # a bundle -> GitHub Release
 bun run src/pipeline.ts --release --version 1.18.31 # build all targets, publish, GitHub release
 ```
 
@@ -59,6 +62,14 @@ Add `--skip-web-ui` to `--local` for a faster build without the embedded web UI.
 `--local` replaces any stock `opencode-ai` install with the build it just produced; `npm install -g opencode-ai` restores the stock package. It prints npm's own global bin path, and warns if the `opencode` that wins on your `PATH` comes from somewhere else (a brew or curl-installer copy shadowing the branded one).
 
 `--check` lists at most the newest three unpublished upstream versions and says how many older ones it skipped, so a long backlog cannot fan out into a huge release matrix. If the registry answers anything other than "not published yet" (npm `E404`), it exits 1 rather than pretending nothing is published.
+
+### Packaging the desktop app (`--desktop-package`)
+
+Runs on a Mac and cross-builds four installers: Apple Silicon and Intel zips, and Windows x64 and ARM64 setup programs, plus `install-mac.sh`, `install-windows.ps1`, `INSTALL.md` and `SHA256SUMS`. Allow about half an hour.
+
+Upstream builds each OS on its own CI runner and bakes the host's terminal module (`@lydell/node-pty-<platform>-<arch>`) into the app. One transform makes that follow `OVERLAY_TARGET_PLATFORM` / `OVERLAY_TARGET_ARCH`, which is all that cross-building needs: every platform's native modules are already installed, and electron-builder edits Windows executables in JavaScript, so no Wine.
+
+**Nothing it produces is signed.** Mac apps are ad-hoc signed, which Apple Silicon requires to run code at all, but Gatekeeper still refuses a downloaded copy; `install-mac.sh` clears the quarantine mark. The Windows installer trips SmartScreen; `install-windows.ps1` unblocks it. The Windows builds are verified only as far as a Mac can (processor type, version resources, branding, the right terminal module) and cannot be run here.
 
 ### Before the first `--release`
 
@@ -127,8 +138,9 @@ Graphical UI (served by `opencode web`, wrapped by the desktop app):
 - `packages/app/index.html`, `packages/ui/src/components/favicon.tsx`, `packages/app/src/components/windows-app-menu.tsx`, `packages/ui/src/theme/context.tsx`
 - every locale in `packages/app/src/i18n/*.ts`, by rule rather than by list
 
-Desktop shell (`--desktop`):
+Desktop shell (`--desktop`, `--desktop-package`):
 
+- `packages/desktop/electron.vite.config.ts` (terminal module follows the build target, for cross-building)
 - `packages/desktop/electron-builder.config.ts` (product name, protocol name, app id, artifact name)
 - `packages/desktop/src/main/index.ts` (app name, app id), `constants.ts` (updater off), `windows.ts` and `src/renderer/index.html` (titles)
 - eight icon files in `packages/desktop/icons/prod/` (replaced)

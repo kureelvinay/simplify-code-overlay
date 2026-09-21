@@ -53,13 +53,13 @@ export function builtInstallerPath(desktopDir: string, brand: Brand, arch: strin
 }
 
 /** The processor a Windows program was built for, or undefined if the bytes are not a Windows program. */
-export function peMachine(bytes: Uint8Array): "x64" | "arm64" | undefined {
+export function peMachine(bytes: Uint8Array): "x64" | "arm64" | "x86" | undefined {
   const b = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   if (b.length < 0x40 || b.toString("latin1", 0, 2) !== "MZ") return undefined
   const pe = b.readUInt32LE(0x3c)
   if (pe + 6 > b.length || b.toString("latin1", pe, pe + 4) !== "PE\u0000\u0000") return undefined
   const machine = b.readUInt16LE(pe + 4)
-  return machine === 0x8664 ? "x64" : machine === 0xaa64 ? "arm64" : undefined
+  return machine === 0x8664 ? "x64" : machine === 0xaa64 ? "arm64" : machine === 0x014c ? "x86" : undefined
 }
 
 export function desktopBuildEnv(
@@ -201,7 +201,8 @@ export function verifyWindowsDesktop(installer: string, brand: Brand, target: De
   const fail = (m: string) => {
     throw new DesktopBuildError("verify", `${path.basename(installer)}: ${m}`)
   }
-  if (peMachine(readFileSync(installer)) === undefined) fail("is not a Windows program")
+  // the NSIS stub is a 32-bit program whatever it installs; the app inside is checked for the real processor
+  if (peMachine(readFileSync(installer)) !== "x86") fail("is not an NSIS installer (expected a 32-bit Windows program)")
 
   const unpacked = path.join(path.dirname(installer), target.arch === "x64" ? "win-unpacked" : `win-${target.arch}-unpacked`)
   const exe = path.join(unpacked, `${brand.productName}.exe`)
