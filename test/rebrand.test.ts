@@ -21,7 +21,7 @@ afterEach(() => {
   rmSync(brandDir, { recursive: true, force: true })
 })
 
-const vars = { productName: "XCode" }
+const vars = { productName: "Simplify Code" }
 
 describe("countOccurrences", () => {
   test("counts non-overlapping matches", () => {
@@ -35,7 +35,7 @@ describe("applyTransforms", () => {
     const t: Transform[] = [{ kind: "edit", file: "a/title.ts", find: 'setTitle("OpenCode")', replace: 'setTitle("{{productName}}")', count: 2 }]
     const written = applyTransforms(root, t, vars, brandDir)
     expect(written).toEqual(["a/title.ts"])
-    expect(readFileSync(path.join(root, "a/title.ts"), "utf8")).toBe('setTitle("XCode")\nsetTitle("XCode")\n')
+    expect(readFileSync(path.join(root, "a/title.ts"), "utf8")).toBe('setTitle("Simplify Code")\nsetTitle("Simplify Code")\n')
   })
 
   test("applies a drop-in", () => {
@@ -50,7 +50,7 @@ describe("applyTransforms", () => {
       { kind: "edit", file: "a/title.ts", find: "setTitle", replace: "setWindowTitle", count: 2 },
     ]
     applyTransforms(root, t, vars, brandDir)
-    expect(readFileSync(path.join(root, "a/title.ts"), "utf8")).toBe('setWindowTitle("XCode")\nsetWindowTitle("XCode")\n')
+    expect(readFileSync(path.join(root, "a/title.ts"), "utf8")).toBe('setWindowTitle("Simplify Code")\nsetWindowTitle("Simplify Code")\n')
   })
 
   test("fails on count mismatch and writes nothing", () => {
@@ -113,8 +113,8 @@ describe("json transforms", () => {
     const t: Transform[] = [{ kind: "json", file: "a/theme.json", set: { name: "{{productName}}", "light.palette.primary": "#7d2b8c" } }]
     expect(applyTransforms(root, t, vars, brandDir)).toEqual(["a/theme.json"])
     const text = readFileSync(path.join(root, "a/theme.json"), "utf8")
-    expect(JSON.parse(text)).toEqual({ name: "XCode", light: { palette: { primary: "#7d2b8c", ink: "#171311" } } })
-    expect(text).toContain('\n  "name": "XCode",\n')
+    expect(JSON.parse(text)).toEqual({ name: "Simplify Code", light: { palette: { primary: "#7d2b8c", ink: "#171311" } } })
+    expect(text).toContain('\n  "name": "Simplify Code",\n')
     expect(text.endsWith("}\n")).toBe(true)
   })
 
@@ -155,9 +155,9 @@ describe("rule transforms", () => {
     const written = applyTransforms(root, [rule], vars, brandDir).sort()
     expect(written).toEqual(["i18n/en.ts", "i18n/fi.ts"])
     expect(readFileSync(path.join(root, "i18n/en.ts"), "utf8")).toBe(
-      'a: "Welcome to XCode",\nb: "OpenCode Zen gives XCode users models",\nc: "OpenCode Go",\n',
+      'a: "Welcome to Simplify Code",\nb: "OpenCode Zen gives Simplify Code users models",\nc: "OpenCode Go",\n',
     )
-    expect(readFileSync(path.join(root, "i18n/fi.ts"), "utf8")).toBe('a: "Tervetuloa XCodeen",\n')
+    expect(readFileSync(path.join(root, "i18n/fi.ts"), "utf8")).toBe('a: "Tervetuloa Simplify Codeen",\n')
   })
 
   test("leaves skipped files and files without the token untouched", () => {

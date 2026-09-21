@@ -1,38 +1,38 @@
 # xcode-overlay
 
-Builds **XCode by SimplifyX**: [OpenCode](https://github.com/anomalyco/opencode) with SimplifyX colors, logo, and name. No fork. This repo holds only brand assets and a pipeline that clones an upstream tag, applies twenty-two small, asserted edits, builds it with upstream's own build script, and packages it as `@simplifyx/xcode`.
+Builds **Simplify Code by SimplifyX**: [OpenCode](https://github.com/anomalyco/opencode) with SimplifyX colors, logo, and name. No fork. This repo holds only brand assets and a pipeline that clones an upstream tag, applies twenty-two small, asserted edits, builds it with upstream's own build script, and packages it as `@simplifyx/simplify-code`.
 
 Design: `docs/superpowers/specs/2026-09-17-xcode-rebrand-overlay-design.md`
 
 ## For developers
 
 ```bash
-npm install -g @simplifyx/xcode --registry <internal registry URL>
+npm install -g @simplifyx/simplify-code --registry <internal registry URL>
 opencode
 ```
 
 The command is `opencode` and all upstream docs apply. `opencode upgrade` pulls from the internal registry.
 
-**Configuration.** Use XCode names: `~/.config/xcode/xcode.json` for yourself, `xcode.json` or a `.xcode/` folder in a project. OpenCode's names (`~/.config/opencode/opencode.json`, `opencode.json`, `.opencode/`) keep working, so existing setups and upstream's docs still apply; where both exist the XCode one wins and the two are merged. If you already have an `opencode.json`, nothing changes until you choose to rename it. New files (agents, plans, themes, plugin config) are created under `.xcode/`, except in a project that already has a `.opencode/` folder, which keeps being used so nothing is split across two folders. To move your personal setup over completely: `mv ~/.config/opencode ~/.config/xcode`. The `opencode.json` that comes along keeps working under its old name inside the new folder; rename it to `xcode.json` whenever you like. Upstream recreates an empty `~/.config/opencode` at startup; it is harmless and is no longer filled with anything.
+**Configuration.** Use Simplify Code names: `~/.config/simplify-code/simplify-code.json` for yourself, `simplify-code.json` or a `.simplify-code/` folder in a project. OpenCode's names (`~/.config/opencode/opencode.json`, `opencode.json`, `.opencode/`) keep working, so existing setups and upstream's docs still apply; where both exist the Simplify Code one wins and the two are merged. If you already have an `opencode.json`, nothing changes until you choose to rename it. New files (agents, plans, themes, plugin config) are created under `.simplify-code/`, except in a project that already has a `.opencode/` folder, which keeps being used so nothing is split across two folders. To move your personal setup over completely: `mv ~/.config/opencode ~/.config/simplify-code`. The `opencode.json` that comes along keeps working under its old name inside the new folder; rename it to `simplify-code.json` whenever you like. Upstream recreates an empty `~/.config/opencode` at startup; it is harmless and is no longer filled with anything.
 
 ### Desktop app (macOS)
 
-**XCode.app** is the graphical way in: OpenCode's desktop app, rebranded. Projects, sessions, model and mode pickers, providers, skills, plugins and settings are all point-and-click. Build and install it on a Mac with:
+**Simplify Code.app** is the graphical way in: OpenCode's desktop app, rebranded. Projects, sessions, model and mode pickers, providers, skills, plugins and settings are all point-and-click. Build and install it on a Mac with:
 
 ```bash
 bun run src/pipeline.ts --desktop --version 1.18.31
 ```
 
-It lands in `~/Applications/XCode.app`, so it shows up in Launchpad and Spotlight. It has its own bundle id (`com.simplifyx.xcode.desktop`) and its own data folder, so it installs beside stock OpenCode Desktop without sharing state. It brings its own copy of the server, built from the same rebranded source, and does not need the `opencode` command installed.
+It lands in `~/Applications/Simplify Code.app`, so it shows up in Launchpad and Spotlight. It has its own bundle id (`com.simplifyx.simplify-code.desktop`) and its own data folder, so it installs beside stock OpenCode Desktop without sharing state. It brings its own copy of the server, built from the same rebranded source, and does not need the `opencode` command installed.
 
 Two deliberate limits of this local build:
 
-- **It never updates itself.** Upstream's updater follows anomalyco's GitHub releases and would replace XCode with stock OpenCode, so it is switched off. New versions are delivered by rebuilding (or, later, by IT) until we publish our own update feed.
+- **It never updates itself.** Upstream's updater follows anomalyco's GitHub releases and would replace Simplify Code with stock OpenCode, so it is switched off. New versions are delivered by rebuilding (or, later, by IT) until we publish our own update feed.
 - **It is ad-hoc signed, not notarized.** That is fine for an app built on the Mac that runs it. An app that is downloaded or copied between Macs needs a Developer ID signature and notarization, or an MDM that installs it without the quarantine flag. That, plus Windows and Linux builds, is CI work that needs the company's signing certificates.
 
 ### Terminal launcher (macOS, optional)
 
-For people who prefer the terminal UI but want an icon: `bun run src/pipeline.ts --launcher` installs **XCode Terminal.app**. Clicking it asks which project folder to open (it remembers the last one), then opens a Terminal window running `opencode` there. Set `XCODE_PROJECT_DIR` to skip the chooser. It is a thin wrapper around the `opencode` command, needs `@simplifyx/xcode` installed, and says so if it is missing.
+For people who prefer the terminal UI but want an icon: `bun run src/pipeline.ts --launcher` installs **Simplify Code Terminal.app**. Clicking it asks which project folder to open (it remembers the last one), then opens a Terminal window running `opencode` there. Set `SIMPLIFY_CODE_PROJECT_DIR` to skip the chooser. It is a thin wrapper around the `opencode` command, needs `@simplifyx/simplify-code` installed, and says so if it is missing.
 
 The app icon, the favicons and the desktop icon set all derive from `brand/icon.png`: regenerate with `bun run script/make-icon.ts`, then `script/make-favicons.ts` and `script/make-desktop-icons.ts` (macOS), or replace the PNG with a designer's artwork and run the last two.
 
@@ -73,7 +73,7 @@ Upstream builds each OS on its own CI runner and bakes the host's terminal modul
 
 ### Before the first `--release`
 
-`releaseRepo` in `brand/brand.json` is a **placeholder** (`simplifyx/xcode-releases`). Point it at the real internal repo first; `--release` refuses to start unless `gh repo view <releaseRepo>` succeeds, so nothing is published against a repo that does not exist. The release path itself is only proven by its first CI run — no local run exercises publishing.
+`releaseRepo` in `brand/brand.json` is a **placeholder** (`simplifyx/simplify-code-releases`). Point it at the real internal repo first; `--release` refuses to start unless `gh repo view <releaseRepo>` succeeds, so nothing is published against a repo that does not exist. The release path itself is only proven by its first CI run — no local run exercises publishing.
 
 ### CI
 

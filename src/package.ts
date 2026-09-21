@@ -89,7 +89,7 @@ export function placeholderBin(brand: Brand): string {
 }
 
 export interface MetaOptions {
-  /** optionalDependencies overrides, e.g. { "@simplifyx/xcode-darwin-arm64": "file:/abs/path.tgz" } */
+  /** optionalDependencies overrides, e.g. { "@simplifyx/simplify-code-darwin-arm64": "file:/abs/path.tgz" } */
   fileDeps?: Record<string, string>
   /** folder name under dist/, default "meta" */
   outDirName?: string

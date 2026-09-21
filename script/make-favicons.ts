@@ -24,7 +24,7 @@ for (const [name, px] of Object.entries(pngs)) {
 }
 
 // .ico is a tiny container; modern readers accept PNG payloads, so embed 32 and 48px PNGs.
-const work = mkdtempSync(path.join(tmpdir(), "xcode-ico-"))
+const work = mkdtempSync(path.join(tmpdir(), "simplify-code-ico-"))
 const entries: { px: number; data: Buffer }[] = []
 for (const px of [32, 48]) {
   const file = path.join(work, `${px}.png`)

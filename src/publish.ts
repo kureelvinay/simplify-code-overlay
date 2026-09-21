@@ -1,4 +1,5 @@
 import type { Brand } from "./brand"
+import { desktopArtifactName } from "./desktop-bundle"
 
 /**
  * Pure parts of publishing a --package bundle as a GitHub Release. The network half lives in
@@ -56,6 +57,7 @@ export function releaseTitle(brand: Brand, version: string, kind: BundleKind = "
 
 export function releaseNotes(brand: Brand, version: string, repo: string, kind: BundleKind = "package"): string {
   if (kind === "desktop") return desktopNotes(brand, version, repo)
+  const pkg = brand.npmPackage.split("/")[1] // platform packages, and so archives, are named after it
   return `The terminal version of **${brand.productName} ${brand.tagline}** ${version}, as standalone programs. Target machines need no Node and no npm.
 
 Rebranded from [OpenCode v${version}](https://github.com/${brand.upstreamRepo}/releases/tag/v${version}) (MIT licensed; \`LICENSE\` is attached).
@@ -66,11 +68,11 @@ Download **the archive for your machine plus the installer** into one folder, th
 
 | Machine | Download | Run |
 |---|---|---|
-| Mac, Apple Silicon | \`xcode-darwin-arm64.zip\`, \`install.sh\` | \`sh install.sh\` |
-| Mac, Intel | \`xcode-darwin-x64.zip\`, \`xcode-darwin-x64-baseline.zip\`, \`install.sh\` | \`sh install.sh\` |
-| Windows, Intel or AMD | \`xcode-windows-x64.zip\`, \`xcode-windows-x64-baseline.zip\`, \`install.ps1\` | \`powershell -ExecutionPolicy Bypass -File .\\install.ps1\` |
-| Windows on ARM | \`xcode-windows-arm64.zip\`, \`install.ps1\` | same |
-| Linux | the matching \`xcode-linux-*.tar.gz\`, \`install.sh\` | \`sh install.sh\` |
+| Mac, Apple Silicon | \`${pkg}-darwin-arm64.zip\`, \`install.sh\` | \`sh install.sh\` |
+| Mac, Intel | \`${pkg}-darwin-x64.zip\`, \`${pkg}-darwin-x64-baseline.zip\`, \`install.sh\` | \`sh install.sh\` |
+| Windows, Intel or AMD | \`${pkg}-windows-x64.zip\`, \`${pkg}-windows-x64-baseline.zip\`, \`install.ps1\` | \`powershell -ExecutionPolicy Bypass -File .\\install.ps1\` |
+| Windows on ARM | \`${pkg}-windows-arm64.zip\`, \`install.ps1\` | same |
+| Linux | the matching \`${pkg}-linux-*.tar.gz\`, \`install.sh\` | \`sh install.sh\` |
 
 The installer picks the right build for the processor (the "baseline" archive is for older processors without AVX2), installs the \`opencode\` command for the current user without administrator rights, and prints the version. \`INSTALL.md\` has the details. Afterwards \`opencode --version\` should print \`${version}\`.
 
@@ -87,6 +89,7 @@ The installer picks the right build for the processor (the "baseline" archive is
 
 function desktopNotes(brand: Brand, version: string, repo: string): string {
   const name = brand.productName
+  const file = (platform: "darwin" | "win32", arch: "arm64" | "x64") => desktopArtifactName(brand, { platform, arch })
   return `The **${name} ${brand.tagline}** ${version} desktop app: the graphical version, for Mac and Windows.
 
 Rebranded from [OpenCode v${version}](https://github.com/${brand.upstreamRepo}/releases/tag/v${version}) (MIT licensed; \`LICENSE\` is attached).
@@ -97,10 +100,10 @@ Download **the installer for your machine plus the helper script** into one fold
 
 | Machine | Download | Run |
 |---|---|---|
-| Mac, Apple Silicon (M1 and later) | \`${name}-mac-apple-silicon.zip\`, \`install-mac.sh\` | \`sh install-mac.sh\` |
-| Mac, Intel | \`${name}-mac-intel.zip\`, \`install-mac.sh\` | \`sh install-mac.sh\` |
-| Windows, Intel or AMD | \`${name}-windows-x64-setup.exe\`, \`install-windows.ps1\` | \`powershell -ExecutionPolicy Bypass -File .\\install-windows.ps1\` |
-| Windows on ARM | \`${name}-windows-arm64-setup.exe\`, \`install-windows.ps1\` | same |
+| Mac, Apple Silicon (M1 and later) | \`${file("darwin", "arm64")}\`, \`install-mac.sh\` | \`sh install-mac.sh\` |
+| Mac, Intel | \`${file("darwin", "x64")}\`, \`install-mac.sh\` | \`sh install-mac.sh\` |
+| Windows, Intel or AMD | \`${file("win32", "x64")}\`, \`install-windows.ps1\` | \`powershell -ExecutionPolicy Bypass -File .\\install-windows.ps1\` |
+| Windows on ARM | \`${file("win32", "arm64")}\`, \`install-windows.ps1\` | same |
 
 \`INSTALL.md\` has the details.
 

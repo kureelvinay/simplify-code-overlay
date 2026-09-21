@@ -10,10 +10,10 @@ const brand = loadBrand()
 
 describe("desktopArtifactName", () => {
   test("names say which machine each installer is for, in words a developer would use", () => {
-    expect(desktopArtifactName(brand, { platform: "darwin", arch: "arm64" })).toBe("XCode-mac-apple-silicon.zip")
-    expect(desktopArtifactName(brand, { platform: "darwin", arch: "x64" })).toBe("XCode-mac-intel.zip")
-    expect(desktopArtifactName(brand, { platform: "win32", arch: "x64" })).toBe("XCode-windows-x64-setup.exe")
-    expect(desktopArtifactName(brand, { platform: "win32", arch: "arm64" })).toBe("XCode-windows-arm64-setup.exe")
+    expect(desktopArtifactName(brand, { platform: "darwin", arch: "arm64" })).toBe("SimplifyCode-mac-apple-silicon.zip")
+    expect(desktopArtifactName(brand, { platform: "darwin", arch: "x64" })).toBe("SimplifyCode-mac-intel.zip")
+    expect(desktopArtifactName(brand, { platform: "win32", arch: "x64" })).toBe("SimplifyCode-windows-x64-setup.exe")
+    expect(desktopArtifactName(brand, { platform: "win32", arch: "arm64" })).toBe("SimplifyCode-windows-arm64-setup.exe")
   })
 })
 
@@ -21,7 +21,7 @@ describe("installMacSh", () => {
   const script = installMacSh(brand, "1.18.31")
 
   test("is valid sh", async () => {
-    const dir = mkdtempSync(path.join(tmpdir(), "xcode-dsh-"))
+    const dir = mkdtempSync(path.join(tmpdir(), "simplify-code-dsh-"))
     writeFileSync(path.join(dir, "i.sh"), script)
     expect((await $`sh -n ${path.join(dir, "i.sh")}`.quiet().nothrow()).exitCode).toBe(0)
     rmSync(dir, { recursive: true, force: true })
@@ -33,7 +33,7 @@ describe("installMacSh", () => {
 
   test("quits a running copy by its exact path, never by name: Apple's Xcode must not be touched", () => {
     expect(script).toContain('pkill -TERM -f "$DEST/Contents/MacOS/"')
-    expect(script).not.toMatch(/pkill[^\n]*\bXCode\b(?!\.app)/)
+    expect(script).not.toMatch(/pkill[^\n]*\bSimplify Code\b(?!\.app)/)
     expect(script).not.toContain("killall")
   })
 
@@ -43,13 +43,13 @@ describe("installMacSh", () => {
   })
 
   test.skipIf(process.platform !== "darwin")("installs from the real archive, and the code signature survives the trip", async () => {
-    const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "xcode-zip-")))
-    const app = path.join(dir, "src", "XCode.app")
+    const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "simplify-code-zip-")))
+    const app = path.join(dir, "src", "Simplify Code.app")
     mkdirSync(path.join(app, "Contents", "MacOS"), { recursive: true })
-    await $`cp /bin/ls ${path.join(app, "Contents", "MacOS", "XCode")}`.quiet()
+    await $`cp /bin/ls ${path.join(app, "Contents", "MacOS", "Simplify Code")}`.quiet()
     writeFileSync(
       path.join(app, "Contents", "Info.plist"),
-      `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>XCode</string><key>CFBundleIdentifier</key><string>test.xcode</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>`,
+      `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleExecutable</key><string>Simplify Code</string><key>CFBundleIdentifier</key><string>test.simplify-code</string><key>CFBundlePackageType</key><string>APPL</string></dict></plist>`,
     )
     expect((await $`codesign --force --deep --sign - ${app}`.quiet().nothrow()).exitCode).toBe(0)
 
@@ -62,10 +62,10 @@ describe("installMacSh", () => {
     writeFileSync(path.join(bundle, "install-mac.sh"), script)
 
     const dest = path.join(dir, "Apps")
-    const r = await $`sh ${path.join(bundle, "install-mac.sh")}`.env({ ...process.env, XCODE_DESKTOP_INSTALL_DIR: dest }).quiet().nothrow()
+    const r = await $`sh ${path.join(bundle, "install-mac.sh")}`.env({ ...process.env, SIMPLIFY_CODE_DESKTOP_INSTALL_DIR: dest }).quiet().nothrow()
     expect(r.exitCode).toBe(0)
-    const installed = path.join(dest, "XCode.app")
-    expect(existsSync(path.join(installed, "Contents", "MacOS", "XCode"))).toBe(true)
+    const installed = path.join(dest, "Simplify Code.app")
+    expect(existsSync(path.join(installed, "Contents", "MacOS", "Simplify Code"))).toBe(true)
     expect((await $`codesign --verify --deep --strict ${installed}`.quiet().nothrow()).exitCode).toBe(0)
     expect((await $`xattr -r ${installed}`.quiet().nothrow().text()).includes("com.apple.quarantine")).toBe(false)
     rmSync(dir, { recursive: true, force: true })
@@ -80,15 +80,15 @@ describe("installWindowsPs1", () => {
     expect(script.replaceAll("\r\n", "")).not.toContain("\n")
   })
   test("picks the installer by processor, unblocks it and waits for it", () => {
-    expect(script).toContain("XCode-windows-arm64-setup.exe")
-    expect(script).toContain("XCode-windows-x64-setup.exe")
+    expect(script).toContain("SimplifyCode-windows-arm64-setup.exe")
+    expect(script).toContain("SimplifyCode-windows-x64-setup.exe")
     expect(script).toContain("Unblock-File")
     expect(script).toContain("-Wait")
   })
 })
 
 describe("desktopInstallGuide", () => {
-  const guide = desktopInstallGuide(brand, "1.18.31", ["XCode-mac-apple-silicon.zip", "XCode-windows-x64-setup.exe"])
+  const guide = desktopInstallGuide(brand, "1.18.31", ["SimplifyCode-mac-apple-silicon.zip", "SimplifyCode-windows-x64-setup.exe"])
 
   test("says plainly what is not signed and what was never run", () => {
     expect(guide).toContain("not signed")
@@ -96,8 +96,8 @@ describe("desktopInstallGuide", () => {
     expect(guide).toContain("SmartScreen")
   })
   test("lists only the installers that were actually built", () => {
-    expect(guide).toContain("XCode-mac-apple-silicon.zip")
-    expect(guide).not.toContain("XCode-mac-intel.zip")
+    expect(guide).toContain("SimplifyCode-mac-apple-silicon.zip")
+    expect(guide).not.toContain("SimplifyCode-mac-intel.zip")
   })
   test("warns that the app does not update itself", () => {
     expect(guide).toContain("does not update itself")

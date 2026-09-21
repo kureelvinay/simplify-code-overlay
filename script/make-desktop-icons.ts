@@ -13,7 +13,7 @@ const root = path.resolve(import.meta.dir, "..")
 const icon = path.join(root, "brand/icon.png")
 const out = path.join(root, "brand/desktop/icons")
 mkdirSync(out, { recursive: true })
-const work = mkdtempSync(path.join(tmpdir(), "xcode-desktop-icons-"))
+const work = mkdtempSync(path.join(tmpdir(), "simplify-code-desktop-icons-"))
 const resize = async (px: number, file: string) => void (await $`sips -z ${px} ${px} ${icon} --out ${file}`.quiet())
 
 const pngs: Record<string, number> = { "icon.png": 512, "dock.png": 256, "32x32.png": 32, "64x64.png": 64, "128x128.png": 128, "128x128@2x.png": 256 }

@@ -14,7 +14,7 @@ import type { PlatformPackage } from "./package"
  * internal registry (--release) remain the path for a managed fleet.
  */
 
-/** "@simplifyx/xcode-linux-x64-musl" -> "xcode-linux-x64-musl.tar.gz"; zip for macOS and Windows. */
+/** "@simplifyx/simplify-code-linux-x64-musl" -> "simplify-code-linux-x64-musl.tar.gz"; zip for macOS and Windows. */
 export function archiveName(packageName: string): string {
   const base = packageName.split("/").pop()!
   return base.includes("linux") ? `${base}.tar.gz` : `${base}.zip`

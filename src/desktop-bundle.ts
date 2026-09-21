@@ -13,8 +13,10 @@ import { DesktopBuildError, type DesktopTarget } from "./desktop"
  */
 
 export function desktopArtifactName(brand: Brand, target: DesktopTarget): string {
-  if (target.platform === "darwin") return `${brand.productName}-mac-${target.arch === "arm64" ? "apple-silicon" : "intel"}.zip`
-  return `${brand.productName}-windows-${target.arch}-setup.exe`
+  // no spaces: GitHub rewrites them in release asset names, which would break the scripts and SHA256SUMS
+  const name = brand.productName.replace(/\s+/g, "")
+  if (target.platform === "darwin") return `${name}-mac-${target.arch === "arm64" ? "apple-silicon" : "intel"}.zip`
+  return `${name}-windows-${target.arch}-setup.exe`
 }
 
 const envPrefix = (brand: Brand) => `${placeholders(brand).productSlug.toUpperCase().replace(/[^A-Z0-9]/g, "_")}_DESKTOP`

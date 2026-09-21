@@ -36,7 +36,7 @@ export function loadBrand(path = `${BRAND_DIR}brand.json`): Brand {
   return parseBrand(readFileSync(path, "utf8"))
 }
 
-/** Reverse-DNS id derived from the npm package: "@simplifyx/xcode" -> "com.simplifyx.xcode". */
+/** Reverse-DNS id derived from the npm package: "@simplifyx/simplify-code" -> "com.simplifyx.simplify-code". */
 export function bundleId(brand: Brand): string {
   const [scope, name] = brand.npmPackage.replace(/^@/, "").split("/")
   return `com.${scope}.${name}`

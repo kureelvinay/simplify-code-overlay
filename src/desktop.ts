@@ -159,7 +159,7 @@ export async function verifyDesktop(app: string, brand: Brand, target: DesktopTa
 /**
  * Replacing a running app bundle leaves a half-old, half-new process behind, so ask a running
  * copy to quit first. Matched by the executable's full path, never by app name: the product is
- * called XCode, and Apple's Xcode must not be touched.
+ * called Simplify Code, and Apple's Xcode must not be touched.
  */
 async function quitRunningCopy(app: string): Promise<void> {
   const exe = path.join(app, "Contents", "MacOS") + path.sep

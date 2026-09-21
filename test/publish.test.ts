@@ -6,7 +6,7 @@ const brand = loadBrand()
 
 describe("missingAssets", () => {
   const local = [
-    { name: "xcode-darwin-arm64.zip", size: 100 },
+    { name: "simplify-code-darwin-arm64.zip", size: 100 },
     { name: "install.sh", size: 10 },
     { name: "SHA256SUMS", size: 5 },
   ]
@@ -14,17 +14,17 @@ describe("missingAssets", () => {
     expect(missingAssets(local, [])).toEqual({ upload: local, replace: [] })
   })
   test("skips what is already there with the same size, so an interrupted upload resumes", () => {
-    const remote = [{ id: 1, name: "xcode-darwin-arm64.zip", size: 100, state: "uploaded" }]
+    const remote = [{ id: 1, name: "simplify-code-darwin-arm64.zip", size: 100, state: "uploaded" }]
     expect(missingAssets(local, remote).upload.map((a) => a.name)).toEqual(["install.sh", "SHA256SUMS"])
   })
   test("replaces a partial or stale asset instead of trusting it", () => {
     const remote = [
-      { id: 7, name: "xcode-darwin-arm64.zip", size: 40, state: "uploaded" }, // wrong size: an older build
+      { id: 7, name: "simplify-code-darwin-arm64.zip", size: 40, state: "uploaded" }, // wrong size: an older build
       { id: 8, name: "install.sh", size: 10, state: "starter" }, // GitHub's state for an upload that never finished
     ]
     const plan = missingAssets(local, remote)
     expect(plan.replace.map((a) => a.id)).toEqual([7, 8])
-    expect(plan.upload.map((a) => a.name)).toEqual(["xcode-darwin-arm64.zip", "install.sh", "SHA256SUMS"])
+    expect(plan.upload.map((a) => a.name)).toEqual(["simplify-code-darwin-arm64.zip", "install.sh", "SHA256SUMS"])
   })
 })
 
@@ -40,7 +40,7 @@ describe("contentType", () => {
 
 describe("release text", () => {
   test("title and notes say what this is, how to install, and what is not signed or tested", () => {
-    expect(releaseTitle(brand, "1.18.31")).toBe("XCode by SimplifyX 1.18.31 (terminal version)")
+    expect(releaseTitle(brand, "1.18.31")).toBe("Simplify Code by SimplifyX 1.18.31 (terminal version)")
     const notes = releaseNotes(brand, "1.18.31", "kureelvinay/xcode-overlay")
     expect(notes).toContain("sh install.sh")
     expect(notes).toContain("install.ps1")
@@ -58,13 +58,13 @@ describe("the desktop bundle is its own release", () => {
     expect(releaseTag("1.18.31", "desktop")).toBe("v1.18.31-desktop")
   })
   test("is titled as the desktop app", () => {
-    expect(releaseTitle(brand, "1.18.31", "desktop")).toBe("XCode by SimplifyX 1.18.31 (desktop app)")
+    expect(releaseTitle(brand, "1.18.31", "desktop")).toBe("Simplify Code by SimplifyX 1.18.31 (desktop app)")
   })
   test("its notes give the desktop install commands and the same plain warnings", () => {
     const notes = releaseNotes(brand, "1.18.31", "kureelvinay/xcode-overlay", "desktop")
     expect(notes).toContain("sh install-mac.sh")
     expect(notes).toContain("install-windows.ps1")
-    expect(notes).toContain("XCode-mac-apple-silicon.zip")
+    expect(notes).toContain("SimplifyCode-mac-apple-silicon.zip")
     expect(notes).toContain("not signed")
     expect(notes).toContain("has not been run on Windows")
     expect(notes).toContain("does not update itself")
@@ -75,7 +75,18 @@ describe("the desktop bundle is its own release", () => {
 
 describe("contentType for desktop files", () => {
   test("a Windows installer is binary, not text", () => {
-    expect(contentType("XCode-windows-x64-setup.exe")).toBe("application/octet-stream")
+    expect(contentType("SimplifyCode-windows-x64-setup.exe")).toBe("application/octet-stream")
     expect(contentType("install-windows.ps1")).toBe("text/plain; charset=utf-8")
+  })
+})
+
+describe("release notes follow the brand", () => {
+  test("file names come from the brand, not from a copy that a rename would leave behind", () => {
+    const terminal = releaseNotes(brand, "1.18.31", "o/r")
+    expect(terminal).toContain("simplify-code-darwin-arm64.zip")
+    expect(terminal).toContain("simplify-code-windows-x64-baseline.zip")
+    const desktop = releaseNotes(brand, "1.18.31", "o/r", "desktop")
+    expect(desktop).toContain("SimplifyCode-windows-arm64-setup.exe")
+    for (const notes of [terminal, desktop]) expect(notes.toLowerCase()).not.toContain("xcode")
   })
 })

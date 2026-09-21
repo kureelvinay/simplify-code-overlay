@@ -23,8 +23,8 @@ describe("electronBuilderArgs", () => {
 
 describe("builtAppPath", () => {
   test("follows electron-builder's output layout", () => {
-    expect(builtAppPath("/u/packages/desktop", brand, "arm64")).toBe("/u/packages/desktop/dist/mac-arm64/XCode.app")
-    expect(builtAppPath("/u/packages/desktop", brand, "x64")).toBe("/u/packages/desktop/dist/mac/XCode.app")
+    expect(builtAppPath("/u/packages/desktop", brand, "arm64")).toBe("/u/packages/desktop/dist/mac-arm64/Simplify Code.app")
+    expect(builtAppPath("/u/packages/desktop", brand, "x64")).toBe("/u/packages/desktop/dist/mac/Simplify Code.app")
   })
 })
 
@@ -51,8 +51,8 @@ describe("cross-building", () => {
     expect(desktopBuildEnv({}, "1.18.31").OVERLAY_TARGET_PLATFORM).toBeUndefined()
   })
   test("finds the Windows installer where electron-builder's artifactName puts it", () => {
-    expect(builtInstallerPath("/u/packages/desktop", brand, "x64")).toBe("/u/packages/desktop/dist/xcode-desktop-win-x64.exe")
-    expect(builtInstallerPath("/u/packages/desktop", brand, "arm64")).toBe("/u/packages/desktop/dist/xcode-desktop-win-arm64.exe")
+    expect(builtInstallerPath("/u/packages/desktop", brand, "x64")).toBe("/u/packages/desktop/dist/simplify-code-desktop-win-x64.exe")
+    expect(builtInstallerPath("/u/packages/desktop", brand, "arm64")).toBe("/u/packages/desktop/dist/simplify-code-desktop-win-arm64.exe")
   })
 })
 

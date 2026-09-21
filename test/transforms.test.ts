@@ -15,13 +15,13 @@ let root: string
 let brandDir: string
 
 beforeEach(() => {
-  root = mkdtempSync(path.join(tmpdir(), "xcode-upstream-"))
+  root = mkdtempSync(path.join(tmpdir(), "simplify-code-upstream-"))
   cpSync(FIXTURES, root, { recursive: true })
   // Use the real brand/ dir when Task 4 has produced the assets, else stand-ins.
   if (existsSync(path.join(BRAND_DIR, "logo.ts")) && existsSync(path.join(BRAND_DIR, "theme.json"))) {
     brandDir = BRAND_DIR
   } else {
-    brandDir = mkdtempSync(path.join(tmpdir(), "xcode-brand-"))
+    brandDir = mkdtempSync(path.join(tmpdir(), "simplify-code-brand-"))
     writeFileSync(path.join(brandDir, "logo.ts"), "export const logo = { left: [], right: [] }\nexport const go = { left: [], right: [] }\nexport const marks = \"_^~,\"\n")
     writeFileSync(path.join(brandDir, "theme.json"), '{"defs":{},"theme":{}}\n')
   }
@@ -131,30 +131,30 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
     const tips = read("packages/tui/src/feature-plugins/home/tips-view.tsx")
     expect(countOccurrences(tips, "OpenCode")).toBe(1)
     expect(tips).toContain("OpenCode Zen")
-    expect(tips).toContain("prevent XCode from reading")
-    expect(read("packages/tui/src/app.tsx")).toContain('setTerminalTitle("XCode")')
-    expect(read("packages/tui/src/app.tsx")).toContain("Successfully updated to XCode v")
+    expect(tips).toContain("prevent Simplify Code from reading")
+    expect(read("packages/tui/src/app.tsx")).toContain('setTerminalTitle("Simplify Code")')
+    expect(read("packages/tui/src/app.tsx")).toContain("Successfully updated to Simplify Code v")
   })
 
   test("rebrands the cli/cmd copies of the same strings", () => {
     applyTransforms(root, TRANSFORMS, vars, brandDir)
     const uninstall = read("packages/opencode/src/cli/cmd/uninstall.ts")
-    expect(uninstall).toContain('prompts.intro("Uninstall XCode")')
-    expect(uninstall).toContain("Thank you for using XCode!")
-    expect(read("packages/opencode/src/cli/cmd/run/splash.ts")).toContain('top, "XCode", right')
+    expect(uninstall).toContain('prompts.intro("Uninstall Simplify Code")')
+    expect(uninstall).toContain("Thank you for using Simplify Code!")
+    expect(read("packages/opencode/src/cli/cmd/run/splash.ts")).toContain('top, "Simplify Code", right')
     const perm = read("packages/opencode/src/cli/cmd/run/footer.permission.tsx")
-    expect(countOccurrences(perm, "Tell XCode what to do differently")).toBe(2)
+    expect(countOccurrences(perm, "Tell Simplify Code what to do differently")).toBe(2)
     const shared = read("packages/opencode/src/cli/cmd/run/permission.shared.ts")
-    expect(countOccurrences(shared, "until XCode is restarted")).toBe(2)
-    expect(read("packages/opencode/src/cli/cmd/run/footer.prompt.tsx")).toContain('description: "close XCode"')
-    expect(read("packages/tui/src/feature-plugins/sidebar/footer.tsx")).toContain("XCode includes free models")
+    expect(countOccurrences(shared, "until Simplify Code is restarted")).toBe(2)
+    expect(read("packages/opencode/src/cli/cmd/run/footer.prompt.tsx")).toContain('description: "close Simplify Code"')
+    expect(read("packages/tui/src/feature-plugins/sidebar/footer.tsx")).toContain("Simplify Code includes free models")
   })
 
   test("rebrands the graphical UI: theme, logo, page chrome, favicons and every locale", () => {
     applyTransforms(root, TRANSFORMS, vars, brandDir)
     const theme = JSON.parse(read("packages/ui/src/theme/themes/oc-2.json"))
     expect(theme.id).toBe("oc-2") // id unchanged so saved preferences keep working
-    expect(theme.name).toBe("XCode")
+    expect(theme.name).toBe("Simplify Code")
     expect(theme.light.palette.primary).toBe("#7d2b8c")
     expect(theme.light.v2Overrides["v2-background-bg-accent"]).toBe("#7d2b8cff")
     expect(theme.dark.v2Overrides["v2-text-text-accent"]).toBe("#c98fd9ff")
@@ -164,19 +164,19 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
 
     expect(read("packages/ui/src/components/logo.tsx")).toBe(readFileSync(path.join(brandDir, "gui/logo.tsx"), "utf8"))
     expect(read("packages/ui/src/v2/components/wordmark-v2.tsx")).toContain("export function WordmarkV2")
-    expect(read("packages/app/index.html")).toContain("<title>XCode</title>")
+    expect(read("packages/app/index.html")).toContain("<title>Simplify Code</title>")
     const manifest = JSON.parse(read("packages/ui/src/assets/favicon/site.webmanifest"))
-    expect([manifest.name, manifest.short_name]).toEqual(["XCode", "XCode"])
-    expect(read("packages/ui/src/components/favicon.tsx")).toContain('content="XCode"')
-    expect(read("packages/app/src/components/windows-app-menu.tsx")).toContain('desktop-app-menu-heading">XCode<')
-    expect(read("packages/ui/src/theme/context.tsx")).toContain('"oc-2": "XCode"')
+    expect([manifest.name, manifest.short_name]).toEqual(["Simplify Code", "Simplify Code"])
+    expect(read("packages/ui/src/components/favicon.tsx")).toContain('content="Simplify Code"')
+    expect(read("packages/app/src/components/windows-app-menu.tsx")).toContain('desktop-app-menu-heading">Simplify Code<')
+    expect(read("packages/ui/src/theme/context.tsx")).toContain('"oc-2": "Simplify Code"')
 
     const png = "packages/ui/src/assets/favicon/favicon-96x96-v3.png"
     expect(Buffer.compare(readFileSync(path.join(root, png)), readFileSync(path.join(brandDir, "gui/favicon/favicon-96x96-v3.png")))).toBe(0)
 
-    expect(read("packages/app/src/i18n/en.ts")).toContain('"app.name.desktop": "XCode Desktop"')
+    expect(read("packages/app/src/i18n/en.ts")).toContain('"app.name.desktop": "Simplify Code Desktop"')
     expect(read("packages/app/src/i18n/en.ts")).toContain("OpenCode Zen gives you access")
-    expect(countOccurrences(read("packages/app/src/i18n/fi.ts"), "XCode")).toBe(42)
+    expect(countOccurrences(read("packages/app/src/i18n/fi.ts"), "Simplify Code")).toBe(42)
   })
 
   test("skins light mode with the simplifyx.com palette and makes light the default", () => {
@@ -313,15 +313,15 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
     const config = () => read("packages/opencode/src/config/config.ts")
     beforeEach(() => void applyTransforms(root, TRANSFORMS, vars, brandDir))
 
-    test("project files: xcode.json(c) is looked up beside opencode.json(c), only for the main config", () => {
-      expect(paths()).toContain('export const BRAND = "xcode"')
+    test("project files: simplify-code.json(c) is looked up beside opencode.json(c), only for the main config", () => {
+      expect(paths()).toContain('export const BRAND = "simplify-code"')
       expect(paths()).toContain("targets: [`${name}.jsonc`, `${name}.json`, ...(name === \"opencode\" ? [`${BRAND}.jsonc`, `${BRAND}.json`] : [])],")
       // upstream relied on reversing the walk; with two name families the order has to be explicit
       expect(paths()).toContain("})).toSorted(byPrecedence)")
       expect(paths()).not.toContain("})).toReversed()")
     })
 
-    test("folders: .xcode beside .opencode, and ~/.config/xcode beside ~/.config/opencode, only if it exists", () => {
+    test("folders: .simplify-code beside .opencode, and ~/.config/simplify-code beside ~/.config/opencode, only if it exists", () => {
       expect(countOccurrences(paths(), 'targets: [".opencode", BRAND_DIR],')).toBe(2)
       expect(paths()).toContain("path.join(path.dirname(Global.Path.config), BRAND)")
       expect(paths()).toContain("...(existsSync(brandGlobalDir()) ? [brandGlobalDir()] : []),")
@@ -333,7 +333,7 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
       const text = config()
       const upstream = text.indexOf('loadFile(path.join(Global.Path.config, "opencode.jsonc"), env)')
       const brandNamesInUpstreamFolder = text.indexOf("for (const file of ConfigPaths.fileInDirectory(Global.Path.config, ConfigPaths.BRAND))")
-      // Regression: `mv ~/.config/opencode ~/.config/xcode` leaves a file still NAMED opencode.json inside the brand
+      // Regression: `mv ~/.config/opencode ~/.config/simplify-code` leaves a file still NAMED opencode.json inside the brand
       // folder, so the brand folder has to read BOTH name families, upstream's first.
       const bothFamiliesInBrandFolder = text.indexOf('for (const name of ["opencode", ConfigPaths.BRAND])')
       expect(upstream).toBeGreaterThan(-1)
@@ -341,7 +341,7 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
       expect(bothFamiliesInBrandFolder).toBeGreaterThan(brandNamesInUpstreamFolder)
     })
 
-    test("a fresh install is seeded with ~/.config/xcode/xcode.jsonc, an existing opencode.json keeps being used", () => {
+    test("a fresh install is seeded with ~/.config/simplify-code/simplify-code.jsonc, an existing opencode.json keeps being used", () => {
       const text = config()
       // ...and a moved opencode.json inside the brand folder keeps being the file the app writes to
       expect(text).toContain('...ConfigPaths.fileInDirectory(ConfigPaths.brandGlobalDir(), "opencode").toReversed(),')
@@ -360,9 +360,9 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
 
     test("managed: a brand folder beside upstream's, and the brand MDM domain checked first", () => {
       const managed = read("packages/opencode/src/config/managed.ts")
-      expect(managed).toContain('path.join(path.dirname(systemManagedConfigDir()), "xcode")')
+      expect(managed).toContain('path.join(path.dirname(systemManagedConfigDir()), "simplify-code")')
       expect(managed).toContain("export function managedConfigDir() {") // upstream's is untouched
-      const brandDomain = managed.indexOf("com.simplifyx.xcode.managed.plist")
+      const brandDomain = managed.indexOf("com.simplifyx.simplify-code.managed.plist")
       const upstreamDomain = managed.indexOf("`${MANAGED_PLIST_DOMAIN}.plist`")
       expect(brandDomain).toBeGreaterThan(-1)
       expect(upstreamDomain).toBeGreaterThan(brandDomain)
@@ -373,9 +373,9 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
       expect(countOccurrences(tui, "dir.endsWith(ConfigPaths.BRAND_DIR)")).toBe(2)
       expect(tui).toContain("[Global.Path.config, ConfigPaths.brandGlobalDir()].flatMap((dir) => ConfigPaths.fileInDirectory(dir, \"tui\"))")
       const mcp = read("packages/opencode/src/cli/cmd/mcp.ts")
-      expect(mcp).toContain('path.join(baseDir, "xcode.json"), path.join(baseDir, "xcode.jsonc"), path.join(baseDir, "opencode.json")')
-      expect(mcp).toContain('path.join(baseDir, ".xcode", "xcode.json")')
-      expect(read("packages/core/src/config.ts")).toContain('const names = ["opencode.json", "opencode.jsonc", "xcode.json", "xcode.jsonc"]')
+      expect(mcp).toContain('path.join(baseDir, "simplify-code.json"), path.join(baseDir, "simplify-code.jsonc"), path.join(baseDir, "opencode.json")')
+      expect(mcp).toContain('path.join(baseDir, ".simplify-code", "simplify-code.json")')
+      expect(read("packages/core/src/config.ts")).toContain('const names = ["opencode.json", "opencode.jsonc", "simplify-code.json", "simplify-code.jsonc"]')
     })
   })
 
@@ -401,20 +401,20 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
       }
     }
 
-    test("a new project gets .xcode; a project that already has .opencode keeps it; having both means .xcode", () => {
-      expect(helpers([]).writeDirIn("/p")).toBe("/p/.xcode")
+    test("a new project gets .simplify-code; a project that already has .opencode keeps it; having both means .simplify-code", () => {
+      expect(helpers([]).writeDirIn("/p")).toBe("/p/.simplify-code")
       expect(helpers(["/p/.opencode"]).writeDirIn("/p")).toBe("/p/.opencode") // never split one project across two folders
-      expect(helpers(["/p/.opencode", "/p/.xcode"]).writeDirIn("/p")).toBe("/p/.xcode")
-      expect(helpers(["/p/.xcode"]).writeDirIn("/p")).toBe("/p/.xcode")
+      expect(helpers(["/p/.opencode", "/p/.simplify-code"]).writeDirIn("/p")).toBe("/p/.simplify-code")
+      expect(helpers(["/p/.simplify-code"]).writeDirIn("/p")).toBe("/p/.simplify-code")
     })
 
-    test("global files go to ~/.config/xcode once it exists, else to upstream's folder", () => {
+    test("global files go to ~/.config/simplify-code once it exists, else to upstream's folder", () => {
       expect(helpers([]).writeGlobalDir()).toBe("/home/u/.config/opencode")
-      expect(helpers(["/home/u/.config/xcode"]).writeGlobalDir()).toBe("/home/u/.config/xcode")
+      expect(helpers(["/home/u/.config/simplify-code"]).writeGlobalDir()).toBe("/home/u/.config/simplify-code")
     })
 
-    test("after a move to ~/.config/xcode, upstream's folder is left alone unless something of the user's is in it", () => {
-      const moved = ["/home/u/.config/xcode"]
+    test("after a move to ~/.config/simplify-code, upstream's folder is left alone unless something of the user's is in it", () => {
+      const moved = ["/home/u/.config/simplify-code"]
       // not migrated: always in use
       expect(helpers([], undefined, []).upstreamGlobalInUse()).toBe(true)
       // migrated, and upstream's folder is empty or holds only what upstream itself generates: leave it alone,
@@ -428,9 +428,9 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
 
     test("read order: outer folders first, brand after upstream within a folder, brand folder after .opencode", () => {
       const h = helpers([])
-      const files = ["/p/a/xcode.json", "/p/opencode.jsonc", "/p/a/opencode.json", "/p/xcode.json", "/p/opencode.json"]
-      expect([...files].sort(h.byPrecedence)).toEqual(["/p/opencode.json", "/p/opencode.jsonc", "/p/xcode.json", "/p/a/opencode.json", "/p/a/xcode.json"])
-      expect(h.brandFoldersLast(["/g", "/p/.xcode", "/p/.opencode", "/q/.xcode"])).toEqual(["/g", "/p/.opencode", "/p/.xcode", "/q/.xcode"])
+      const files = ["/p/a/simplify-code.json", "/p/opencode.jsonc", "/p/a/opencode.json", "/p/simplify-code.json", "/p/opencode.json"]
+      expect([...files].sort(h.byPrecedence)).toEqual(["/p/opencode.json", "/p/opencode.jsonc", "/p/simplify-code.json", "/p/a/opencode.json", "/p/a/simplify-code.json"])
+      expect(h.brandFoldersLast(["/g", "/p/.simplify-code", "/p/.opencode", "/q/.simplify-code"])).toEqual(["/g", "/p/.opencode", "/p/.simplify-code", "/q/.simplify-code"])
     })
 
     test("every write site goes through those helpers, and plan files stay editable in plan mode", () => {
@@ -440,9 +440,9 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
       expect(read(`${O}/cli/cmd/agent.ts`)).toContain('import { ConfigPaths } from "@/config/paths"')
       expect(read(`${O}/session/session.ts`)).toContain('? path.join(ConfigPaths.writeDirIn(instance.worktree), "plans")')
       // plan mode denies every edit except the plans folder, so the new folder needs its own allow rule, in both engines
-      expect(read(`${O}/agent/agent.ts`)).toContain('[path.join(".xcode", "plans", "*.md")]: "allow",')
+      expect(read(`${O}/agent/agent.ts`)).toContain('[path.join(".simplify-code", "plans", "*.md")]: "allow",')
       expect(read(`${O}/agent/agent.ts`)).toContain('[path.join(".opencode", "plans", "*.md")]: "allow",')
-      expect(read("packages/core/src/plugin/agent.ts")).toContain('{ action: "edit", resource: path.join(".xcode", "plans", "*.md"), effect: "allow" },')
+      expect(read("packages/core/src/plugin/agent.ts")).toContain('{ action: "edit", resource: path.join(".simplify-code", "plans", "*.md"), effect: "allow" },')
       const install = read(`${O}/plugin/install.ts`)
       expect(install).toContain("return input.config ?? ConfigPaths.writeGlobalDir()")
       expect(install).toContain("return ConfigPaths.writeDirIn(root)")
@@ -456,17 +456,17 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
     test("themes written to the brand folders are also discovered, and the tips and built-in skill name them", () => {
       applyTransforms(root, TRANSFORMS, vars, brandDir)
       const theme = read("packages/tui/src/context/theme.tsx")
-      expect(theme).toContain('directories.push(path.join(current, ".opencode"), path.join(current, ".xcode"))')
-      expect(theme).toContain('path.join(path.dirname(Global.Path.config), "xcode")')
+      expect(theme).toContain('directories.push(path.join(current, ".opencode"), path.join(current, ".simplify-code"))')
+      expect(theme).toContain('path.join(path.dirname(Global.Path.config), "simplify-code")')
       const tips = read("packages/tui/src/feature-plugins/home/tips-view.tsx")
       expect(countOccurrences(tips, ".opencode/")).toBe(0)
-      expect(countOccurrences(tips, ".xcode/")).toBe(5)
+      expect(countOccurrences(tips, ".simplify-code/")).toBe(5)
       // the model follows this built-in skill when asked to create agents, commands or skills
       const skill = read("packages/core/src/plugin/skill/customize-opencode.md")
-      expect(skill).toContain("prefer the XCode names")
+      expect(skill).toContain("prefer the Simplify Code names")
       expect(skill).toContain("# Customizing opencode") // the upstream body is kept, not rewritten
       for (const f of ["packages/core/src/plugin/skill.ts", "packages/opencode/src/skill/index.ts"]) {
-        expect(read(f)).toContain("xcode.json, xcode.jsonc, files under .xcode/ or ~/.config/xcode/")
+        expect(read(f)).toContain("simplify-code.json, simplify-code.jsonc, files under .simplify-code/ or ~/.config/simplify-code/")
       }
     })
   })
@@ -490,24 +490,24 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
   test("rebrands the desktop shell: name, identity, updater, window chrome, icons, locales", () => {
     applyTransforms(root, TRANSFORMS, vars, brandDir)
     const config = read("packages/desktop/electron-builder.config.ts")
-    expect(config).toContain('productName: "XCode",')
-    expect(config).toContain('protocols: { name: "XCode", schemes: ["opencode"] },') // scheme unchanged: deep links keep working
-    expect(config).toContain('prod: "com.simplifyx.xcode.desktop",')
-    expect(config).toContain('artifactName: "xcode-desktop-${os}-${arch}.${ext}",')
+    expect(config).toContain('productName: "Simplify Code",')
+    expect(config).toContain('protocols: { name: "Simplify Code", schemes: ["opencode"] },') // scheme unchanged: deep links keep working
+    expect(config).toContain('prod: "com.simplifyx.simplify-code.desktop",')
+    expect(config).toContain('artifactName: "simplify-code-desktop-${os}-${arch}.${ext}",')
 
     const main = read("packages/desktop/src/main/index.ts")
-    expect(main).toContain('prod: "XCode",')
-    expect(main).toContain('prod: "com.simplifyx.xcode.desktop",')
+    expect(main).toContain('prod: "Simplify Code",')
+    expect(main).toContain('prod: "com.simplifyx.simplify-code.desktop",')
     // the app must never pull upstream's release feed and update itself back to stock
     expect(read("packages/desktop/src/main/constants.ts")).toContain("export const UPDATER_ENABLED = false")
     expect(read("packages/desktop/src/main/constants.ts")).not.toContain("app.isPackaged && CHANNEL")
-    expect(read("packages/desktop/src/main/windows.ts")).toContain('title: "XCode",')
-    expect(read("packages/desktop/src/renderer/index.html")).toContain("<title>XCode</title>")
+    expect(read("packages/desktop/src/main/windows.ts")).toContain('title: "Simplify Code",')
+    expect(read("packages/desktop/src/renderer/index.html")).toContain("<title>Simplify Code</title>")
 
     const icns = readFileSync(path.join(root, "packages/desktop/icons/prod/icon.icns"))
     expect(icns.subarray(0, 4).toString("latin1")).toBe("icns")
-    expect(read("packages/desktop/src/renderer/i18n/en.ts")).toContain("latest version of XCode")
-    expect(countOccurrences(read("packages/desktop/src/renderer/i18n/de.ts"), "XCode")).toBe(2)
+    expect(read("packages/desktop/src/renderer/i18n/en.ts")).toContain("latest version of Simplify Code")
+    expect(countOccurrences(read("packages/desktop/src/renderer/i18n/de.ts"), "Simplify Code")).toBe(2)
   })
 
   test("leaves no unaccounted OpenCode string anywhere in the fixture tree", () => {
@@ -533,10 +533,10 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
     expect(countOccurrences(inst, "opencode-ai@")).toBe(0)
     expect(countOccurrences(inst, "/opencode-ai/")).toBe(0)
     expect(inst).not.toContain("anomalyco/opencode")
-    expect(inst).toContain('"@simplifyx/xcode"')
-    expect(inst).toContain("/@simplifyx%2Fxcode/${InstallationChannel}")
-    expect(countOccurrences(inst, "@simplifyx/xcode@${target}")).toBe(3)
-    expect(inst).toContain("https://api.github.com/repos/simplifyx/xcode-releases/releases/latest")
+    expect(inst).toContain('"@simplifyx/simplify-code"')
+    expect(inst).toContain("/@simplifyx%2Fsimplify-code/${InstallationChannel}")
+    expect(countOccurrences(inst, "@simplifyx/simplify-code@${target}")).toBe(3)
+    expect(inst).toContain("https://api.github.com/repos/simplifyx/simplify-code-releases/releases/latest")
     // functional identifiers untouched
     expect(inst).toContain('? "opencode" :')
   })
