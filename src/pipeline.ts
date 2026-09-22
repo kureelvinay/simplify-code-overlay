@@ -79,7 +79,7 @@ export function newerVersions(upstream: string[], current: string | undefined): 
 
 async function latestUpstreamVersion(brand: Brand): Promise<string> {
   const res = await fetch(`https://api.github.com/repos/${brand.upstreamRepo}/releases/latest`, {
-    headers: { "user-agent": "xcode-overlay" },
+    headers: { "user-agent": "simplify-code-overlay" },
   })
   if (!res.ok) throw new PipelineError(`GitHub API returned ${res.status} for ${brand.upstreamRepo}`, EXIT.input)
   const data = (await res.json()) as { tag_name: string }
@@ -234,7 +234,7 @@ async function registryLatest(brand: Brand): Promise<string | undefined> {
 
 async function upstreamReleaseVersions(brand: Brand): Promise<string[]> {
   const res = await fetch(`https://api.github.com/repos/${brand.upstreamRepo}/releases?per_page=30`, {
-    headers: { "user-agent": "xcode-overlay" },
+    headers: { "user-agent": "simplify-code-overlay" },
   })
   if (!res.ok) throw new PipelineError(`GitHub API returned ${res.status} for ${brand.upstreamRepo}`, EXIT.input)
   const data = (await res.json()) as { tag_name: string; draft: boolean; prerelease: boolean }[]

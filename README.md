@@ -1,4 +1,4 @@
-# xcode-overlay
+# simplify-code-overlay
 
 Builds **Simplify Code by SimplifyX**: [OpenCode](https://github.com/anomalyco/opencode) with SimplifyX colors, logo, and name. No fork. This repo holds only brand assets and a pipeline that clones an upstream tag, applies twenty-two small, asserted edits, builds it with upstream's own build script, and packages it as `@simplifyx/simplify-code`.
 
