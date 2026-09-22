@@ -64,6 +64,12 @@ const KEPT_OPENCODE: { file: string; count: number; contains: string; reason: st
     reason: "theme-picker label for upstream's own classic theme, which is still called OpenCode",
   },
   {
+    file: "packages/app/src/pages/layout/deep-links.ts",
+    count: 2,
+    contains: "type OpenCodeWindow",
+    reason: "a TypeScript type name, never shown to anyone",
+  },
+  {
     file: "packages/desktop/electron-builder.config.ts",
     count: 5,
     contains: 'productName: "OpenCode Dev"',
@@ -103,9 +109,9 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and twelve entries: sixty-four file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(112)
-    expect(UPSTREAM_FILES).toHaveLength(64)
+  test("has one hundred and fifty-three entries: eighty-four file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(153)
+    expect(UPSTREAM_FILES).toHaveLength(84)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
       "packages/desktop/src/renderer/i18n/*.ts",
@@ -491,7 +497,8 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
     applyTransforms(root, TRANSFORMS, vars, brandDir)
     const config = read("packages/desktop/electron-builder.config.ts")
     expect(config).toContain('productName: "Simplify Code",')
-    expect(config).toContain('protocols: { name: "Simplify Code", schemes: ["opencode"] },') // scheme unchanged: deep links keep working
+    expect(config).toContain('protocols: { name: "Simplify Code", schemes: ["simplify-code"] },')
+    expect(config).not.toContain('repo: "opencode", channel: "latest"') // no publish config: no resources/app-update.yml pointing at anomalyco
     expect(config).toContain('prod: "com.simplifyx.simplify-code.desktop",')
     expect(config).toContain('artifactName: "simplify-code-desktop-${os}-${arch}.${ext}",')
 
@@ -587,6 +594,10 @@ describe("desktop publisher", () => {
     applyTransforms(root, TRANSFORMS, vars, brandDir)
     const pkg = JSON.parse(read("packages/desktop/package.json"))
     expect(pkg.author.name).toBe("SimplifyX")
+    // electron-builder names the one-click per-user install folder after the PACKAGE name, not the product:
+    // %LOCALAPPDATA%\Programs\@opencode-aidesktop on the first Windows install
+    expect(pkg.name).toBe("simplify-code-desktop")
+    expect(pkg.dependencies["@opencode-ai/plugin"] ?? pkg.devDependencies["@opencode-ai/app"]).toBeDefined() // workspace deps untouched
     const cfg = read("packages/desktop/electron-builder.config.ts")
     expect(cfg).toContain('copyright: "Copyright © OpenCode contributors, MIT License. Distributed by SimplifyX.",')
   })
@@ -656,5 +667,74 @@ describe("company-controlled team folder and plugin lock", () => {
     expect(m.isAdminSource("/home/u/.config/simplify-code/simplify-code.json")).toBe(false)
     expect(m.isAdminSource("/home/u/projects/app/.simplify-code/plugins/x.js")).toBe(false)
     expect(m.isAdminSource("/managed/simplify-code-evil/x.json")).toBe(false) // prefix, not a real child
+  })
+})
+
+describe("no traces of the upstream name on an installed machine", () => {
+  beforeEach(() => void applyTransforms(root, TRANSFORMS, vars, brandDir))
+
+  test("data, cache, config and state folders, and the database file, are named after the product", () => {
+    expect(read("packages/core/src/global.ts")).toContain('const app = "simplify-code"')
+    expect(read("packages/core/src/database/database.ts")).toContain('join(Global.Path.data, "simplify-code.db")')
+    expect(read("packages/core/src/observability/logging.ts")).toContain('path.join(Global.Path.log, "simplify-code.log")')
+  })
+
+  test("the command is named after the product: the binary, the help header and the user agent", () => {
+    const build = read("packages/opencode/script/build.ts")
+    expect(build).toContain("outfile: `dist/${name}/bin/simplify-code`,")
+    expect(build).toContain("const binaryPath = `dist/${name}/bin/simplify-code`") // upstream's own smoke test
+    expect(build).toContain("`--user-agent=simplify-code/${Script.version}`")
+    expect(read("packages/opencode/src/index.ts")).toContain('.scriptName("simplify-code")')
+  })
+
+  test("messages that tell the user to run a command name the right command", () => {
+    for (const file of ["packages/tui/src/util/error.ts", "packages/opencode/src/cli/error.ts"]) {
+      const text = read(file)
+      expect(text).toContain("simplify-code models")
+      expect(text).toContain("simplify-code auth login ${url}")
+      expect(text).toContain("Note, Simplify Code does not support MCP authentication yet.")
+    }
+    expect(read("packages/opencode/src/cli/cmd/upgrade.ts")).toContain('describe: "upgrade Simplify Code to the latest or a specific version"')
+    expect(read("packages/opencode/src/cli/cmd/serve.ts")).toContain("`Simplify Code server listening on http://")
+    expect(read("packages/opencode/src/cli/cmd/providers.ts")).toContain('describe: "simplify-code auth provider"')
+    expect(read("packages/opencode/src/cli/cmd/debug/index.ts")).toContain("`Simplify Code version: ${InstallationVersion}`")
+    for (const file of [
+      "packages/tui/src/util/error.ts",
+      "packages/opencode/src/cli/error.ts",
+      "packages/opencode/src/cli/cmd/upgrade.ts",
+      "packages/opencode/src/cli/cmd/serve.ts",
+      "packages/opencode/src/cli/cmd/pr.ts",
+      "packages/opencode/src/cli/cmd/providers.ts",
+      "packages/opencode/src/cli/cmd/debug/index.ts",
+    ]) {
+      // no user-facing "opencode <word>" left; comments may keep it
+      const code = read(file).split("\n").filter((l) => !l.trim().startsWith("//")).join("\n")
+      expect(code).not.toMatch(/[`"']opencode /)
+    }
+  })
+
+  test("every command description in --help names the product, and the server's defaults do too", () => {
+    const files = [
+      "packages/opencode/src/cli/network.ts",
+      "packages/opencode/src/cli/cmd/tui.ts",
+      "packages/opencode/src/cli/cmd/uninstall.ts",
+      "packages/opencode/src/cli/cmd/pr.ts",
+      "packages/opencode/src/cli/cmd/attach.ts",
+      "packages/opencode/src/cli/cmd/web.ts",
+      "packages/opencode/src/cli/cmd/run.ts",
+    ]
+    for (const file of files) expect(read(file)).not.toMatch(/describe: ["`][^"`]*opencode/)
+    expect(read("packages/opencode/src/cli/cmd/tui.ts")).toContain('describe: "start Simplify Code tui"')
+    expect(read("packages/opencode/src/cli/cmd/uninstall.ts")).toContain('describe: "uninstall Simplify Code and remove all related files"')
+    expect(read("packages/opencode/src/cli/network.ts")).toContain('default: "simplify-code.local"')
+    expect(read("packages/opencode/src/server/mdns.ts")).toContain('domain ?? "simplify-code.local"')
+    expect(read("packages/opencode/src/server/auth.ts")).toContain('EffectConfig.withDefault("simplify-code")')
+    expect(read("packages/opencode/src/server/auth.ts")).toContain('Flag.OPENCODE_SERVER_USERNAME ?? "simplify-code"')
+    expect(read("packages/opencode/src/cli/cmd/run.ts")).toContain('$0: "simplify-code",')
+  })
+
+  test("deep links use the product's own scheme end to end", () => {
+    expect(read("packages/desktop/src/main/index.ts")).toContain('arg.startsWith("simplify-code://")')
+    expect(read("packages/app/src/pages/layout/deep-links.ts")).toContain('input.startsWith("simplify-code://")')
   })
 })

@@ -74,7 +74,16 @@ if (existing.status === 404) {
   )
 } else {
   release = await json<Release>(existing, "read release")
-  console.log(`release ${tag} already exists; resuming`)
+  console.log(`release ${tag} already exists; resuming, and refreshing its title and notes`)
+  // notes are generated from the brand and bundle kind; a re-run after a change must not leave stale text
+  await json(
+    await fetch(`${api}/releases/${release.id}`, {
+      method: "PATCH",
+      headers: auth,
+      body: JSON.stringify({ name: releaseTitle(brand, version, kind), body: releaseNotes(brand, version, repo, kind, tag) }),
+    }),
+    "update release notes",
+  )
 }
 
 const local = readdirSync(dir)

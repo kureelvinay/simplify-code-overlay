@@ -1,19 +1,22 @@
 #!/usr/bin/env bun
 // End-to-end check of the brand config names against a REAL built binary.
 //
-//   bun run script/e2e-config.ts [path-to-opencode]      default: `opencode` on PATH
+//   bun run script/e2e-config.ts [path-to-binary]        default: `simplify-code` on PATH
 //
 // The config-name transforms change behaviour, so string checks on the patched source are not
 // enough. Each case gets a throwaway home (XDG_* point into a temp folder, so the real
 // ~/.config/opencode is never read or written), runs `opencode debug config`, and asserts on the
 // resolved result. Exit 0 only if every case passes.
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
+//
+// Since the no-traces change, the app's own folders are ~/.config/<brand> etc.; OpenCode's folders are
+// neither read nor created. A file still NAMED opencode.json inside the brand folder is read (migration).
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { $ } from "bun"
 import { loadBrand, placeholders } from "../src/brand"
 
-const bin = process.argv[2] ?? "opencode"
+const bin = process.argv[2] ?? "simplify-code"
 const BRAND = placeholders(loadBrand()).productSlug
 
 interface Sandbox {
@@ -85,24 +88,29 @@ await check(`~/.config/${BRAND}/${BRAND}.json alone is picked up`, async (s) => 
   return expectEq("model", (await s.resolved()).model, "brand/global")
 })
 
-await check(`${BRAND}.json beats opencode.json, and the two are merged, not swapped`, async (s) => {
-  s.write(path.join(s.config, "opencode", "opencode.json"), { model: "upstream/global", small_model: "upstream/small" })
+await check(`${BRAND}.json beats an opencode.json in the same brand folder, and the two are merged, not swapped`, async (s) => {
+  s.write(path.join(s.config, BRAND, "opencode.json"), { model: "upstream/global", small_model: "upstream/small" })
   s.write(path.join(s.config, BRAND, `${BRAND}.json`), { model: "brand/global" })
   const c = await s.resolved()
   return expectEq("model", c.model, "brand/global") ?? expectEq("small_model", c.small_model, "upstream/small")
 })
 
-await check("an existing opencode.json alone still works, and no brand folder is created beside it", async (s) => {
-  s.write(path.join(s.config, "opencode", "opencode.json"), { model: "upstream/global" })
+await check("stock OpenCode's ~/.config/opencode is neither read nor created", async (s) => {
+  s.write(path.join(s.config, "opencode", "opencode.json"), { model: "stock/should-be-ignored" })
   const c = await s.resolved()
-  return expectEq("model", c.model, "upstream/global") ?? expectEq(`~/.config/${BRAND} exists`, existsSync(path.join(s.config, BRAND)), false)
+  return (
+    expectEq("model", c.model, undefined) ??
+    expectEq("upstream folder untouched", readdirSync(path.join(s.config, "opencode")), ["opencode.json"]) ??
+    expectEq("no data folder named opencode", existsSync(path.join(s.root, "data", "opencode")), false) ??
+    expectEq("brand data folder", existsSync(path.join(s.root, "data", BRAND)), true)
+  )
 })
 
-await check(`a fresh install is seeded with ~/.config/${BRAND}/${BRAND}.jsonc`, async (s) => {
+await check(`a fresh install is seeded with ~/.config/${BRAND}/${BRAND}.jsonc and nothing else appears`, async (s) => {
   await s.resolved()
   return (
     expectEq("brand seed exists", existsSync(path.join(s.config, BRAND, `${BRAND}.jsonc`)), true) ??
-    expectEq("upstream seed exists", existsSync(path.join(s.config, "opencode", "opencode.jsonc")), false)
+    expectEq("config folders", readdirSync(s.config), [BRAND])
   )
 })
 
@@ -143,13 +151,9 @@ await check(`after moving the whole folder, an opencode.json inside ~/.config/${
   return expectEq("model", c.model, "moved/global") ?? expectEq("small_model", c.small_model, "moved/small")
 })
 
-await check("and the emptied upstream folder is not refilled with a .gitignore, package.json or node_modules", async (s) => {
-  s.write(path.join(s.config, BRAND, `${BRAND}.json`), { model: "brand/global" })
-  await s.resolved()
-  await s.run(["models"])
-  const upstream = path.join(s.config, "opencode")
-  const refilled = [".gitignore", "package.json", "node_modules"].filter((f) => existsSync(path.join(upstream, f)))
-  return expectEq("files recreated in ~/.config/opencode", refilled, [])
+await check("the command names itself after the product in its own help", async (s) => {
+  const help = await s.run(["--help"])
+  return expectEq("usage header", help.includes(`${BRAND} [command]`) || help.includes(`${BRAND} <command>`) || help.includes(`${BRAND} [`), true) ?? expectEq("no opencode in help", /\bopencode\b/.test(help), false)
 })
 
 // Company control: an administrator-owned team folder and the plugin lock.

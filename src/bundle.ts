@@ -51,7 +51,7 @@ export function installSh(brand: Brand, version: string): string {
   return `#!/bin/sh
 # ${brand.productName} ${brand.tagline} ${version}: installer for macOS and Linux.
 # Run it from the folder it came in:   sh install.sh
-# Installs the \`opencode\` command. Set ${envVar} to choose the folder.
+# Installs the \`${slug}\` command. Set ${envVar} to choose the folder.
 set -eu
 
 here=$(cd "$(dirname "$0")" && pwd)
@@ -96,15 +96,15 @@ mkdir -p "$dest"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
 if [ "$os" = linux ]; then tar -xzf "$archive" -C "$tmp"; else unzip -q "$archive" -d "$tmp"; fi
-install -m 755 "$tmp/opencode" "$dest/opencode"
+install -m 755 "$tmp/${slug}" "$dest/${slug}"
 
 # A binary that arrived by browser, mail or AirDrop carries macOS's quarantine flag, and Gatekeeper
 # refuses to run an unsigned binary that has it. Clearing it is what "allowing" the app does.
-if [ "$os" = darwin ]; then xattr -d com.apple.quarantine "$dest/opencode" 2>/dev/null || true; fi
+if [ "$os" = darwin ]; then xattr -d com.apple.quarantine "$dest/${slug}" 2>/dev/null || true; fi
 
-echo "${brand.productName} ${brand.tagline} installed: $dest/opencode"
+echo "${brand.productName} ${brand.tagline} installed: $dest/${slug}"
 echo "If your company enforces a gateway, put your personal key in ~/.config/simplifyx/gateway-key (chmod 600)."
-"$dest/opencode" --version
+"$dest/${slug}" --version
 
 case ":$PATH:" in
   *":$dest:"*) ;;
@@ -121,7 +121,7 @@ export function installPs1(brand: Brand, version: string): string {
     `# ${brand.productName} ${brand.tagline} ${version}: installer for Windows.`,
     "# Run it from the folder it came in, in PowerShell:",
     "#   powershell -ExecutionPolicy Bypass -File .\\install.ps1",
-    `# Installs the \`opencode\` command for the current user. Set ${envVar} to choose the folder.`,
+    `# Installs the \`${slug}\` command for the current user. Set ${envVar} to choose the folder.`,
     '$ErrorActionPreference = "Stop"',
     "",
     "$here = Split-Path -Parent $MyInvocation.MyCommand.Path",
@@ -159,9 +159,9 @@ export function installPs1(brand: Brand, version: string): string {
     '  Write-Host "Added $dest to your PATH. Open a new terminal for it to take effect."',
     "}",
     "",
-    `Write-Host "${brand.productName} ${brand.tagline} installed: $dest\\opencode.exe"`,
+    `Write-Host "${brand.productName} ${brand.tagline} installed: $dest\\${slug}.exe"`,
     `Write-Host "If your company enforces a gateway, put your personal key in $env:USERPROFILE\\.config\\simplifyx\\gateway-key"`,
-    '& (Join-Path $dest "opencode.exe") --version',
+    `& (Join-Path $dest "${slug}.exe") --version`,
     "",
   ]
   return lines.join("\r\n")
@@ -182,7 +182,7 @@ Copy this whole folder to the machine, open Terminal in it, and run:
 sh install.sh
 \`\`\`
 
-It picks the right build for the machine${has("darwin-x64") ? " (Apple Silicon or Intel, and the \"baseline\" build for older Intel processors)" : ""}, installs the \`opencode\` command into \`/usr/local/bin\` or \`~/.local/bin\`, and prints the version. If it says the folder is not on your PATH, add the line it shows to \`~/.zshrc\` and open a new terminal.
+It picks the right build for the machine${has("darwin-x64") ? " (Apple Silicon or Intel, and the \"baseline\" build for older Intel processors)" : ""}, installs the \`${slug}\` command into \`/usr/local/bin\` or \`~/.local/bin\`, and prints the version. If it says the folder is not on your PATH, add the line it shows to \`~/.zshrc\` and open a new terminal.
 
 ## Windows
 
@@ -197,23 +197,23 @@ It installs for the current user into \`%LOCALAPPDATA%\\Programs\\${brand.produc
 ## Check it worked
 
 \`\`\`bash
-opencode --version
+${slug} --version
 \`\`\`
 
-It should print \`${version}\`. Then run \`opencode\` inside a project folder. Personal configuration goes in \`~/.config/${slug}/${slug}.json\`. If your company enforces a gateway, your personal key goes in \`~/.config/simplifyx/gateway-key\` (readable only by you, \`chmod 600\`); company settings themselves are installed by IT and cannot be changed locally.
+It should print \`${version}\`. Then run \`${slug}\` inside a project folder. Personal configuration goes in \`~/.config/${slug}/${slug}.json\`. If your company enforces a gateway, your personal key goes in \`~/.config/simplifyx/gateway-key\` (readable only by you, \`chmod 600\`); company settings themselves are installed by IT and cannot be changed locally.
 
 ## Things to know
 
 - **These builds are not code-signed.** The installers clear the "downloaded from the internet" flag that would otherwise make macOS Gatekeeper or Windows SmartScreen refuse to run them. That is safe here because you know where this folder came from; it is also exactly why you should only install from a copy you trust. For a company-wide rollout, sign the binaries and distribute them through your device management instead.
 - **Check the download.** \`SHA256SUMS\` lists the expected checksum of every archive. On macOS or Linux: \`shasum -a 256 -c SHA256SUMS\`. On Windows: \`Get-FileHash <file> -Algorithm SHA256\`.
-- **The Windows installer was generated on a Mac and has not been run on Windows by the people who built it.** If it misbehaves, unzip \`${slug}-windows-x64.zip\` by hand and put \`opencode.exe\` anywhere on your PATH; that is all the script does.
-- **Updating** means installing a newer copy of this folder over the old one. \`opencode upgrade\` looks for an internal package registry, which a hand-installed copy does not have.
+- **The Windows installer was generated on a Mac and has not been run on Windows by the people who built it.** If it misbehaves, unzip \`${slug}-windows-x64.zip\` by hand and put \`${slug}.exe\` anywhere on your PATH; that is all the script does.
+- **Updating** means installing a newer copy of this folder over the old one. \`${slug} upgrade\` looks for an internal package registry, which a hand-installed copy does not have.
 - This is the terminal version. The desktop app is packaged separately.
 
 ## What is in this folder
 
 ${archives.map((a) => `- \`${a}\``).join("\n")}
-- \`install.sh\`, \`install.ps1\`, \`SHA256SUMS\`, \`LICENSE\` (OpenCode is MIT licensed)
+- \`install.sh\`, \`install.ps1\`, \`SHA256SUMS\`, \`LICENSE\` (the MIT licence of the code this is built on)
 `
 }
 

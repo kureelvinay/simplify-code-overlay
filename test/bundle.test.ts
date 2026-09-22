@@ -44,17 +44,17 @@ describe("installSh", () => {
   test.skipIf(!onMac)("really installs from a bundle folder and the installed command runs", async () => {
     const bundle = path.join(tmp, "bundle")
     const arch = process.arch === "arm64" ? "arm64" : "x64"
-    await writeBundle([fakePlatform(`@simplifyx/simplify-code-darwin-${arch}`, "opencode"), fakePlatform(`@simplifyx/simplify-code-darwin-${arch}-baseline`, "opencode")], bundle, brand, "9.9.9")
+    await writeBundle([fakePlatform(`@simplifyx/simplify-code-darwin-${arch}`, "simplify-code"), fakePlatform(`@simplifyx/simplify-code-darwin-${arch}-baseline`, "opencode")], bundle, brand, "9.9.9")
     const dest = path.join(tmp, "installed")
     const r = await $`sh ${path.join(bundle, "install.sh")}`.env({ ...process.env, SIMPLIFY_CODE_INSTALL_DIR: dest }).nothrow().quiet()
     expect(r.exitCode).toBe(0)
     expect(r.stdout.toString()).toContain("9.9.9")
-    expect(existsSync(path.join(dest, "opencode"))).toBe(true)
-    expect((await $`${path.join(dest, "opencode")} --version`.quiet().text()).trim()).toBe("9.9.9")
+    expect(existsSync(path.join(dest, "simplify-code"))).toBe(true)
+    expect((await $`${path.join(dest, "simplify-code")} --version`.quiet().text()).trim()).toBe("9.9.9")
   })
   test.skipIf(!onMac)("fails clearly when the archive for this machine is not in the bundle", async () => {
     const bundle = path.join(tmp, "bundle")
-    await writeBundle([fakePlatform("@simplifyx/simplify-code-windows-x64", "opencode.exe")], bundle, brand, "9.9.9")
+    await writeBundle([fakePlatform("@simplifyx/simplify-code-windows-x64", "simplify-code.exe")], bundle, brand, "9.9.9")
     const r = await $`sh ${path.join(bundle, "install.sh")}`.env({ ...process.env, SIMPLIFY_CODE_INSTALL_DIR: path.join(tmp, "x") }).nothrow().quiet()
     expect(r.exitCode).not.toBe(0)
     expect(r.stderr.toString()).toContain("not in this bundle")
@@ -83,7 +83,7 @@ describe("writeBundle", () => {
   test("writes one archive per platform, both installers, a guide and checksums that match", async () => {
     const out = path.join(tmp, "bundle")
     const result = await writeBundle(
-      [fakePlatform("@simplifyx/simplify-code-darwin-arm64", "opencode"), fakePlatform("@simplifyx/simplify-code-windows-x64", "opencode.exe"), fakePlatform("@simplifyx/simplify-code-linux-x64", "opencode")],
+      [fakePlatform("@simplifyx/simplify-code-darwin-arm64", "simplify-code"), fakePlatform("@simplifyx/simplify-code-windows-x64", "simplify-code.exe"), fakePlatform("@simplifyx/simplify-code-linux-x64", "opencode")],
       out,
       brand,
       "9.9.9",
@@ -95,8 +95,8 @@ describe("writeBundle", () => {
     const sums = readFileSync(path.join(out, "SHA256SUMS"), "utf8")
     expect(sums).toBe(sha256Sums(out, ["simplify-code-darwin-arm64.zip", "simplify-code-linux-x64.tar.gz", "simplify-code-windows-x64.zip"]))
     expect(sums.split("\n").filter(Boolean)).toHaveLength(3)
-    // the Windows archive holds opencode.exe at its root, which is what install.ps1 expects
-    expect((await $`unzip -l ${path.join(out, "simplify-code-windows-x64.zip")}`.quiet().text())).toContain("opencode.exe")
+    // the Windows archive holds simplify-code.exe at its root, which is what install.ps1 expects
+    expect((await $`unzip -l ${path.join(out, "simplify-code-windows-x64.zip")}`.quiet().text())).toContain("simplify-code.exe")
   })
 })
 
@@ -106,6 +106,7 @@ describe("installGuide", () => {
     expect(md).toContain("Simplify Code by SimplifyX 1.18.31")
     expect(md).toContain("not code-signed")
     expect(md).toContain("SHA256SUMS")
-    expect(md).toContain("opencode --version")
+    expect(md).toContain("simplify-code --version")
+    expect(md.toLowerCase()).not.toMatch(/\bopencode\b/)
   })
 })

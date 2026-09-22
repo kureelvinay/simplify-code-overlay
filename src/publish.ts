@@ -82,14 +82,14 @@ Download **the archive for your machine plus the installer** into one folder, th
 | Windows on ARM | \`${pkg}-windows-arm64.zip\`, \`install.ps1\` | same |
 | Linux | the matching \`${pkg}-linux-*.tar.gz\`, \`install.sh\` | \`sh install.sh\` |
 
-The installer picks the right build for the processor (the "baseline" archive is for older processors without AVX2), installs the \`opencode\` command for the current user without administrator rights, and prints the version. \`INSTALL.md\` has the details. Afterwards \`opencode --version\` should print \`${version}\`.
+The installer picks the right build for the processor (the "baseline" archive is for older processors without AVX2), installs the \`${pkg}\` command for the current user without administrator rights, and prints the version. \`INSTALL.md\` has the details. Afterwards \`${pkg} --version\` should print \`${version}\`.
 
 **This repository is private**, so downloads need a signed-in browser, or on a machine without one: \`gh release download ${tag} --repo ${repo}\`.
 
 ## Know before you install
 
 - **The programs are not code-signed.** The installers clear the "downloaded from the internet" mark that would otherwise make macOS Gatekeeper or Windows SmartScreen refuse to run them. Only install from this release; for a company-wide rollout, sign the binaries and use device management instead.
-- **\`install.ps1\` was generated on a Mac and has not been run on Windows** by the people who built it. If it misbehaves, unzip the archive and put \`opencode.exe\` anywhere on your PATH; that is all the script does.
+- **\`install.ps1\` was generated on a Mac and has not been run on Windows** by the people who built it. If it misbehaves, unzip the archive and put \`${pkg}.exe\` anywhere on your PATH; that is all the script does.
 - Verify a download against \`SHA256SUMS\`: \`shasum -a 256 -c SHA256SUMS\` (macOS, Linux) or \`Get-FileHash <file> -Algorithm SHA256\` (Windows).
 - Updating means installing a newer release over the old one. This is the terminal version; the desktop app is packaged separately.
 `

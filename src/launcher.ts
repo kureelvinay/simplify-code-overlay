@@ -2,7 +2,7 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { $ } from "bun"
-import { bundleId as brandBundleId, type Brand } from "./brand"
+import { bundleId as brandBundleId, placeholders, type Brand } from "./brand"
 
 /**
  * A double-clickable macOS app that opens the branded TUI in Terminal. It is the
@@ -11,7 +11,7 @@ import { bundleId as brandBundleId, type Brand } from "./brand"
  *
  * The bundle is deliberately thin: its executable hands a `run.command` script to
  * Terminal (so the TUI gets a real tty and the user's own shell environment), and
- * that script asks for a project folder and execs `opencode` there. Nothing in it is
+ * that script asks for a project folder and execs the product command there. Nothing in it is
  * machine-specific, so the same bundle can be pushed to every Mac.
  */
 
@@ -71,6 +71,7 @@ export function launcherScript(): string {
 /** Contents/Resources/run.command: runs inside Terminal. */
 export function runScript(brand: Brand): string {
   const name = brand.productName
+  const cmd = placeholders(brand).productSlug
   const envVar = `${name.toUpperCase().replace(/[^A-Z0-9]/g, "_")}_PROJECT_DIR`
   return `#!/bin/zsh
 # Runs inside Terminal, launched by ${appName(brand)}.
@@ -92,10 +93,10 @@ mkdir -p "$state_dir" && print -r -- "$project" > "$last_file"
 
 # Terminal starts this script from the user's login shell, but fall back to an
 # interactive shell lookup for setups (nvm, asdf) that only extend PATH in .zshrc.
-bin="$(command -v opencode 2>/dev/null)"
-[ -n "$bin" ] || bin="$(/bin/zsh -ilc 'command -v opencode' 2>/dev/null | tail -n 1)"
+bin="$(command -v ${cmd} 2>/dev/null)"
+[ -n "$bin" ] || bin="$(/bin/zsh -ilc 'command -v ${cmd}' 2>/dev/null | tail -n 1)"
 if [ -z "$bin" ] || [ ! -x "$bin" ]; then
-  echo "${name} ${brand.tagline} is not installed, or 'opencode' is not on your PATH."
+  echo "${name} ${brand.tagline} is not installed, or '${cmd}' is not on your PATH."
   echo "Install it with:  npm install -g ${brand.npmPackage}"
   echo
   read -k 1 "?Press any key to close. " 2>/dev/null

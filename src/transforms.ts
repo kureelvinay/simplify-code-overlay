@@ -469,7 +469,7 @@ export const TRANSFORMS: Transform[] = [
     kind: "edit",
     file: `${DESKTOP}/electron-builder.config.ts`,
     find: 'protocols: { name: "OpenCode", schemes: ["opencode"] },',
-    replace: 'protocols: { name: "{{productName}}", schemes: ["opencode"] },',
+    replace: 'protocols: { name: "{{productName}}", schemes: ["{{productSlug}}"] },',
     count: 1,
   },
   { kind: "edit", file: `${DESKTOP}/electron-builder.config.ts`, find: 'prod: "ai.opencode.desktop",', replace: 'prod: "{{desktopAppId}}",', count: 1 },
@@ -692,6 +692,58 @@ export const TRANSFORMS: Transform[] = [
     count: 1,
   },
 
+  // 114-153. No traces of the upstream name on an installed machine: folders, command, help header,
+  // user agent, messages that name the command, deep-link scheme, update feed file. Third-party service
+  // names (OpenCode Zen, OpenCode Go) and the MIT licence are the deliberate exceptions.
+  { kind: "edit", file: "packages/core/src/global.ts", find: 'const app = "opencode"', replace: 'const app = "{{productSlug}}"', count: 1 },
+  { kind: "edit", file: "packages/core/src/database/database.ts", find: 'join(Global.Path.data, "opencode.db")', replace: 'join(Global.Path.data, "{{productSlug}}.db")', count: 1 },
+  { kind: "edit", file: "packages/core/src/observability/logging.ts", find: 'path.join(Global.Path.log, "opencode.log")', replace: 'path.join(Global.Path.log, "{{productSlug}}.log")', count: 1 },
+  { kind: "edit", file: "packages/opencode/script/build.ts", find: "outfile: `dist/${name}/bin/opencode`,", replace: "outfile: `dist/${name}/bin/{{productSlug}}`,", count: 1 },
+  { kind: "edit", file: "packages/opencode/script/build.ts", find: "`--user-agent=opencode/${Script.version}`", replace: "`--user-agent={{productSlug}}/${Script.version}`", count: 1 },
+  { kind: "edit", file: "packages/opencode/script/build.ts", find: "const binaryPath = `dist/${name}/bin/opencode`", replace: "const binaryPath = `dist/${name}/bin/{{productSlug}}`", count: 1 },
+  { kind: "edit", file: "packages/opencode/src/index.ts", find: '.scriptName("opencode")', replace: '.scriptName("{{productSlug}}")', count: 1 },
+  { kind: "edit", file: `${TUI}/util/error.ts`, find: "Try: `opencode models` to list available models", replace: "Try: `{{productSlug}} models` to list available models", count: 1 },
+  { kind: "edit", file: `${TUI}/util/error.ts`, find: "Run \\`opencode auth login ${url}\\` to re-authenticate.", replace: "Run \\`{{productSlug}} auth login ${url}\\` to re-authenticate.", count: 1 },
+  { kind: "edit", file: `${TUI}/util/error.ts`, find: "Note, opencode does not support MCP authentication yet.", replace: "Note, {{productName}} does not support MCP authentication yet.", count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/error.ts", find: "Try: \\`opencode models\\` to list available models", replace: "Try: \\`{{productSlug}} models\\` to list available models", count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/error.ts", find: "Run \\`opencode auth login ${url}\\` to re-authenticate.", replace: "Run \\`{{productSlug}} auth login ${url}\\` to re-authenticate.", count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/error.ts", find: "Note, opencode does not support MCP authentication yet.", replace: "Note, {{productName}} does not support MCP authentication yet.", count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/upgrade.ts", find: 'describe: "upgrade opencode to the latest or a specific version"', replace: 'describe: "upgrade {{productName}} to the latest or a specific version"', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/upgrade.ts", find: "`opencode is installed to ${process.execPath}", replace: "`{{productName}} is installed to ${process.execPath}", count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/upgrade.ts", find: "`opencode upgrade skipped: ${target}", replace: "`{{productSlug}} upgrade skipped: ${target}", count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/serve.ts", find: 'describe: "starts a headless opencode server"', replace: 'describe: "starts a headless {{productName}} server"', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/serve.ts", find: "`opencode server listening on http://", replace: "`{{productName}} server listening on http://", count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/pr.ts", find: "`Found opencode session: ${sessionUrl}`", replace: "`Found {{productName}} session: ${sessionUrl}`", count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/pr.ts", find: "`opencode exited with code ${code}`", replace: "`{{productName}} exited with code ${code}`", count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/providers.ts", find: 'describe: "opencode auth provider"', replace: 'describe: "{{productSlug}} auth provider"', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/debug/index.ts", find: "`opencode version: ${InstallationVersion}`", replace: "`{{productName}} version: ${InstallationVersion}`", count: 1 },
+  // command descriptions shown by --help, and the server's mDNS domain and basic-auth username defaults
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/tui.ts", find: 'describe: "start opencode tui"', replace: 'describe: "start {{productName}} tui"', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/tui.ts", find: 'describe: "path to start opencode in"', replace: 'describe: "path to start {{productName}} in"', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/uninstall.ts", find: 'describe: "uninstall opencode and remove all related files"', replace: 'describe: "uninstall {{productName}} and remove all related files"', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/pr.ts", find: 'describe: "fetch and checkout a GitHub PR branch, then run opencode"', replace: 'describe: "fetch and checkout a GitHub PR branch, then run {{productName}}"', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/attach.ts", find: 'describe: "attach to a running opencode server"', replace: 'describe: "attach to a running {{productName}} server"', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/attach.ts", find: "describe: \"basic auth username (defaults to OPENCODE_SERVER_USERNAME or 'opencode')\"", replace: "describe: \"basic auth username (defaults to OPENCODE_SERVER_USERNAME or '{{productSlug}}')\"", count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/web.ts", find: 'describe: "start opencode server and open web interface"', replace: 'describe: "start {{productName}} server and open web interface"', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/run.ts", find: 'describe: "run opencode with a message"', replace: 'describe: "run {{productName}} with a message"', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/run.ts", find: 'describe: "attach to a running opencode server (e.g., http://localhost:4096)"', replace: 'describe: "attach to a running {{productName}} server (e.g., http://localhost:4096)"', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/run.ts", find: "describe: \"basic auth username (defaults to OPENCODE_SERVER_USERNAME or 'opencode')\"", replace: "describe: \"basic auth username (defaults to OPENCODE_SERVER_USERNAME or '{{productSlug}}')\"", count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/cmd/run.ts", find: '    $0: "opencode",', replace: '    $0: "{{productSlug}}",', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/cli/network.ts", find: 'describe: "custom domain name for mDNS service (default: opencode.local)",\n    default: "opencode.local",', replace: 'describe: "custom domain name for mDNS service (default: {{productSlug}}.local)",\n    default: "{{productSlug}}.local",', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/server/mdns.ts", find: 'domain ?? "opencode.local"', replace: 'domain ?? "{{productSlug}}.local"', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/server/auth.ts", find: 'EffectConfig.withDefault("opencode")', replace: 'EffectConfig.withDefault("{{productSlug}}")', count: 1 },
+  { kind: "edit", file: "packages/opencode/src/server/auth.ts", find: 'Flag.OPENCODE_SERVER_USERNAME ?? "opencode"', replace: 'Flag.OPENCODE_SERVER_USERNAME ?? "{{productSlug}}"', count: 1 },
+  { kind: "edit", file: `${DESKTOP}/src/main/index.ts`, find: 'arg.startsWith("opencode://")', replace: 'arg.startsWith("{{productSlug}}://")', count: 1 },
+  { kind: "edit", file: `${APP}/src/pages/layout/deep-links.ts`, find: 'input.startsWith("opencode://")', replace: 'input.startsWith("{{productSlug}}://")', count: 1 },
+  // no publish config for prod: electron-builder would otherwise write resources/app-update.yml naming anomalyco's repo
+  {
+    kind: "edit",
+    file: `${DESKTOP}/electron-builder.config.ts`,
+    find: '        publish: { provider: "github", owner: "anomalyco", repo: "opencode", channel: "latest" },\n',
+    replace: "",
+    count: 1,
+  },
+
   // ---------------------------------------------------------------------------
   // Where NEW files are created. Same principle as the config file: an existing .opencode folder keeps
   // being used (so one project is never split across two folders); everything new gets the brand name.
@@ -843,6 +895,10 @@ export const TRANSFORMS: Transform[] = [
   // programs) and the default copyright line from package.json's author. The company distributes the
   // app, so it is the publisher; the copyright stays upstream's, whose MIT-licensed code this is.
   { kind: "json", file: `${DESKTOP}/package.json`, set: { "author.name": "{{companyName}}" } },
+  // 113. The Windows per-user install folder. electron-builder names a one-click installer's folder after the
+  // PACKAGE name, sanitised (%LOCALAPPDATA%\Programs\@opencode-aidesktop), not after productName. Only the
+  // lockfile knows this name and nothing imports the package, and the build never reinstalls after transforms.
+  { kind: "json", file: `${DESKTOP}/package.json`, set: { name: "{{productSlug}}-desktop" } },
   // 107. Cross-building the desktop app. Upstream bakes the HOST's terminal module
   // (@lydell/node-pty-<platform>-<arch>) into the app, which is right on its per-OS CI runners and
   // wrong when one Mac builds the Intel-Mac and Windows apps too. Unset, behaviour is upstream's.

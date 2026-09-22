@@ -8,12 +8,12 @@ Design: `docs/superpowers/specs/2026-09-17-xcode-rebrand-overlay-design.md`
 
 ```bash
 npm install -g @simplifyx/simplify-code --registry <internal registry URL>
-opencode
+simplify-code
 ```
 
-The command is `opencode` and all upstream docs apply. `opencode upgrade` pulls from the internal registry.
+The command is `simplify-code`; upstream's docs apply with that one substitution. `simplify-code upgrade` pulls from the internal registry.
 
-**Configuration.** Use Simplify Code names: `~/.config/simplify-code/simplify-code.json` for yourself, `simplify-code.json` or a `.simplify-code/` folder in a project. OpenCode's names (`~/.config/opencode/opencode.json`, `opencode.json`, `.opencode/`) keep working, so existing setups and upstream's docs still apply; where both exist the Simplify Code one wins and the two are merged. If you already have an `opencode.json`, nothing changes until you choose to rename it. New files (agents, plans, themes, plugin config) are created under `.simplify-code/`, except in a project that already has a `.opencode/` folder, which keeps being used so nothing is split across two folders. To move your personal setup over completely: `mv ~/.config/opencode ~/.config/simplify-code`. The `opencode.json` that comes along keeps working under its old name inside the new folder; rename it to `simplify-code.json` whenever you like. Upstream recreates an empty `~/.config/opencode` at startup; it is harmless and is no longer filled with anything.
+**Configuration.** Everything lives under the product's own names: `~/.config/simplify-code/simplify-code.json` for yourself, `simplify-code.json` or a `.simplify-code/` folder in a project, data in `~/.local/share/simplify-code`. Stock OpenCode's `~/.config/opencode` is neither read nor created, so a machine that also has OpenCode installed keeps the two completely apart. Inside a project, an existing `opencode.json` or `.opencode/` folder is still read (they may be committed in repos shared with OpenCode users) and a project that already has `.opencode/` keeps using it for new files, so nothing is split across two folders. A file still named `opencode.json` inside `~/.config/simplify-code/` is read too, which is what `mv ~/.config/opencode ~/.config/simplify-code` leaves behind.
 
 ### Desktop app (macOS)
 
@@ -32,13 +32,13 @@ Two deliberate limits of this local build:
 
 ### Terminal launcher (macOS, optional)
 
-For people who prefer the terminal UI but want an icon: `bun run src/pipeline.ts --launcher` installs **Simplify Code Terminal.app**. Clicking it asks which project folder to open (it remembers the last one), then opens a Terminal window running `opencode` there. Set `SIMPLIFY_CODE_PROJECT_DIR` to skip the chooser. It is a thin wrapper around the `opencode` command, needs `@simplifyx/simplify-code` installed, and says so if it is missing.
+For people who prefer the terminal UI but want an icon: `bun run src/pipeline.ts --launcher` installs **Simplify Code Terminal.app**. Clicking it asks which project folder to open (it remembers the last one), then opens a Terminal window running `simplify-code` there. Set `SIMPLIFY_CODE_PROJECT_DIR` to skip the chooser. It is a thin wrapper around the `opencode` command, needs `@simplifyx/simplify-code` installed, and says so if it is missing.
 
 The app icon, the favicons and the desktop icon set all derive from `brand/icon.png`: regenerate with `bun run script/make-icon.ts`, then `script/make-favicons.ts` and `script/make-desktop-icons.ts` (macOS), or replace the PNG with a designer's artwork and run the last two.
 
 ## Company-managed configuration
 
-`managed/opencode.jsonc` is the configuration IT installs on every machine: it pins the company AI gateway and its models, disables sharing and self-update, and locks out every other provider, and developers cannot override it. It is independent of the builds. See `managed/README.md`, and always run `bun run script/check-managed.ts` before deploying.
+`managed/simplify-code.jsonc` is the configuration IT installs on every machine: it pins the company AI gateway and its models, disables sharing and self-update, and locks out every other provider, and developers cannot override it. It is independent of the builds. See `managed/README.md`, and always run `bun run script/check-managed.ts` before deploying.
 
 ## For maintainers
 
@@ -68,13 +68,17 @@ Add `--skip-web-ui` to `--local` for a faster build without the embedded web UI.
 
 Two layers the app loads above every developer's own config, both installed by an administrator into a folder developers can read but not change (`/Library/Application Support/simplify-code/`, `%ProgramData%\simplify-code\`, `/etc/simplify-code/`):
 
-- **`simplify-code.jsonc`**, the enforced config (`managed/opencode.jsonc` in this repo): gateway, allowed models, sharing off, self-update off, required plugins.
+- **`simplify-code.jsonc`**, the enforced config (`managed/simplify-code.jsonc` in this repo): gateway, allowed models, sharing off, self-update off, required plugins.
 - **`team/`** (the `team/` folder in this repo): shared agents, commands, skills and local plugin files. Our build treats it as a config folder, so its contents load on every machine. Being root-owned is fine: the app only warns when it cannot write its scaffolding there.
 - **`plugin-lock`**, an optional empty marker file. While present, only plugins declared by an administrator (managed folders, the team folder, an MDM profile) load. Without it, the managed plugin list is merged with a developer's own, so required plugins always load but developers may add more.
 
 `--team-package` writes the bundle with root-only installers; `script/publish-bundle.ts --bundle team --version <date>` publishes it. The team bundle is dated, not tied to an app version, because IT changes it on its own schedule. A missing `{file:}` reference in an administrator's config resolves to empty rather than stopping the app, so a developer without their key yet can still start it; in a developer's own config it stays an error.
 
 Developers' home folders are never touched. The one thing each developer provides is their gateway key at `~/.config/simplifyx/gateway-key`.
+
+### No traces of the upstream name
+
+On an installed machine the upstream name does not appear: the command is `simplify-code`, its data, cache, config and state folders are `…/simplify-code`, the Windows install folder is `Programs\simplify-code-desktop`, deep links use `simplify-code://`, the help header and every message that names the command use the product name, and no `app-update.yml` pointing at upstream's releases is generated. Two deliberate exceptions: the third-party service names "OpenCode Zen" and "OpenCode Go" (hidden anyway by the provider lock), and the MIT licence file, which must credit the original authors.
 
 ### Packaging the desktop app (`--desktop-package`)
 
@@ -143,7 +147,7 @@ Edit `brand/brand.json`, `brand/theme.json`, or `brand/logo.ts` for the terminal
 - `packages/opencode/src/cli/cmd/run/footer.prompt.tsx`
 - `packages/opencode/src/cli/cmd/run/permission.shared.ts`
 
-Graphical UI (served by `opencode web`, wrapped by the desktop app):
+Graphical UI (served by `simplify-code web`, wrapped by the desktop app):
 
 - `packages/ui/src/theme/themes/oc-2.json` (accent keys patched)
 - `packages/ui/src/components/logo.tsx` and `packages/ui/src/v2/components/wordmark-v2.tsx` (replaced)

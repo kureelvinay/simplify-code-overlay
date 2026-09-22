@@ -68,10 +68,10 @@ describe("runScript", () => {
     expect(r.exitCode).toBe(0)
   })
 
-  test.skipIf(!onMac)("runs opencode inside the chosen project folder", async () => {
+  test.skipIf(!onMac)("runs simplify-code inside the chosen project folder", async () => {
     const project = path.join(tmp, "my project")
     mkdirSync(project)
-    const bin = fakeBin("opencode", 'echo "ran-in:$(pwd)"')
+    const bin = fakeBin("simplify-code", 'echo "ran-in:$(pwd)"')
     const r = await $`${writeRun()} < /dev/null`
       .env({ PATH: `${bin}:/usr/bin:/bin`, HOME: tmp, SIMPLIFY_CODE_PROJECT_DIR: project })
       .nothrow()
@@ -80,7 +80,7 @@ describe("runScript", () => {
     expect(r.exitCode).toBe(0)
   })
 
-  test.skipIf(!onMac)("explains how to install when opencode is missing", async () => {
+  test.skipIf(!onMac)("explains how to install when simplify-code is missing", async () => {
     const r = await $`${writeRun()} < /dev/null`
       .env({ PATH: "/usr/bin:/bin", HOME: tmp, SIMPLIFY_CODE_PROJECT_DIR: tmp })
       .nothrow()
@@ -90,7 +90,7 @@ describe("runScript", () => {
   })
 
   test.skipIf(!onMac)("exits quietly when the folder chooser is cancelled", async () => {
-    const bin = fakeBin("opencode", 'echo "should-not-run"')
+    const bin = fakeBin("simplify-code", 'echo "should-not-run"')
     fakeBin("osascript", "exit 1") // what `choose folder` does on Cancel
     const r = await $`${writeRun()} < /dev/null`.env({ PATH: `${bin}:/usr/bin:/bin`, HOME: tmp }).nothrow().quiet()
     expect(r.stdout.toString()).not.toContain("should-not-run")
