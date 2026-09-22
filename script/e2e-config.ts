@@ -26,7 +26,7 @@ interface Sandbox {
 }
 
 function sandbox(): Sandbox {
-  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "xcode-e2e-")))
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "simplify-code-e2e-")))
   const config = path.join(root, "config")
   const project = path.join(root, "project")
   for (const d of [config, project, path.join(root, "data"), path.join(root, "cache"), path.join(root, "state")]) mkdirSync(d, { recursive: true })
@@ -133,7 +133,7 @@ await check("the brand managed folder overrides a developer's own brand config",
   return expectEq("share", c.share, "disabled")
 })
 
-// Regression: `mv ~/.config/opencode ~/.config/xcode` is the advertised way to migrate, and it leaves a file
+// Regression: `mv ~/.config/opencode ~/.config/simplify-code` is the advertised way to migrate, and it leaves a file
 // still NAMED opencode.json inside the brand folder. The first version of the loader did not read it.
 await check(`after moving the whole folder, an opencode.json inside ~/.config/${BRAND} is still read`, async (s) => {
   s.write(path.join(s.config, BRAND, "opencode.json"), { model: "moved/global", small_model: "moved/small" })

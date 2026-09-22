@@ -12,25 +12,25 @@ const onMac = process.platform === "darwin"
 
 let tmp: string
 beforeEach(() => {
-  tmp = realpathSync(mkdtempSync(path.join(tmpdir(), "xcode-launcher-")))
+  tmp = realpathSync(mkdtempSync(path.join(tmpdir(), "simplify-code-launcher-")))
 })
 afterEach(() => rmSync(tmp, { recursive: true, force: true }))
 
 describe("naming", () => {
   test("is named as the terminal companion, leaving the product name to the desktop app", () => {
-    expect(appName(brand)).toBe("XCode Terminal.app")
+    expect(appName(brand)).toBe("Simplify Code Terminal.app")
   })
   test("bundle id is derived from the npm package and does not collide with the desktop app", () => {
-    expect(bundleId(brand)).toBe("com.simplifyx.xcode.terminal")
+    expect(bundleId(brand)).toBe("com.simplifyx.simplify-code.terminal")
   })
 })
 
 describe("infoPlist", () => {
   const plist = infoPlist(brand, "1.18.31")
   test("declares an application bundle with our executable, icon and version", () => {
-    expect(plist).toContain("<key>CFBundleName</key>\n  <string>XCode Terminal</string>")
-    expect(plist).toContain("<key>CFBundleIdentifier</key>\n  <string>com.simplifyx.xcode.terminal</string>")
-    expect(plist).toContain("<key>CFBundleExecutable</key>\n  <string>XCode Terminal</string>")
+    expect(plist).toContain("<key>CFBundleName</key>\n  <string>Simplify Code Terminal</string>")
+    expect(plist).toContain("<key>CFBundleIdentifier</key>\n  <string>com.simplifyx.simplify-code.terminal</string>")
+    expect(plist).toContain("<key>CFBundleExecutable</key>\n  <string>Simplify Code Terminal</string>")
     expect(plist).toContain("<key>CFBundleIconFile</key>\n  <string>AppIcon</string>")
     expect(plist).toContain("<key>CFBundleShortVersionString</key>\n  <string>1.18.31</string>")
     expect(plist).toContain("<key>CFBundlePackageType</key>\n  <string>APPL</string>")
@@ -73,7 +73,7 @@ describe("runScript", () => {
     mkdirSync(project)
     const bin = fakeBin("opencode", 'echo "ran-in:$(pwd)"')
     const r = await $`${writeRun()} < /dev/null`
-      .env({ PATH: `${bin}:/usr/bin:/bin`, HOME: tmp, XCODE_PROJECT_DIR: project })
+      .env({ PATH: `${bin}:/usr/bin:/bin`, HOME: tmp, SIMPLIFY_CODE_PROJECT_DIR: project })
       .nothrow()
       .quiet()
     expect(r.stdout.toString()).toContain(`ran-in:${project}`)
@@ -82,11 +82,11 @@ describe("runScript", () => {
 
   test.skipIf(!onMac)("explains how to install when opencode is missing", async () => {
     const r = await $`${writeRun()} < /dev/null`
-      .env({ PATH: "/usr/bin:/bin", HOME: tmp, XCODE_PROJECT_DIR: tmp })
+      .env({ PATH: "/usr/bin:/bin", HOME: tmp, SIMPLIFY_CODE_PROJECT_DIR: tmp })
       .nothrow()
       .quiet()
     expect(r.exitCode).toBe(1)
-    expect(r.stdout.toString()).toContain("npm install -g @simplifyx/xcode")
+    expect(r.stdout.toString()).toContain("npm install -g @simplifyx/simplify-code")
   })
 
   test.skipIf(!onMac)("exits quietly when the folder chooser is cancelled", async () => {
@@ -101,11 +101,11 @@ describe("runScript", () => {
 describe("buildMacApp", () => {
   test("writes a complete, executable bundle and can be rebuilt in place", async () => {
     const app = await buildMacApp(tmp, brand, "1.18.31", ICON)
-    expect(app).toBe(path.join(tmp, "XCode Terminal.app"))
-    for (const f of ["Contents/Info.plist", "Contents/MacOS/XCode Terminal", "Contents/Resources/run.command"]) {
+    expect(app).toBe(path.join(tmp, "Simplify Code Terminal.app"))
+    for (const f of ["Contents/Info.plist", "Contents/MacOS/Simplify Code Terminal", "Contents/Resources/run.command"]) {
       expect(existsSync(path.join(app, f))).toBe(true)
     }
-    expect(statSync(path.join(app, "Contents/MacOS/XCode Terminal")).mode & 0o111).not.toBe(0)
+    expect(statSync(path.join(app, "Contents/MacOS/Simplify Code Terminal")).mode & 0o111).not.toBe(0)
     expect(statSync(path.join(app, "Contents/Resources/run.command")).mode & 0o111).not.toBe(0)
     expect(readFileSync(path.join(app, "Contents/Info.plist"), "utf8")).toBe(infoPlist(brand, "1.18.31"))
     await buildMacApp(tmp, brand, "1.18.32", ICON)

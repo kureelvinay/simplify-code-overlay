@@ -1,7 +1,6 @@
 // Drop-in replacement for upstream packages/ui/src/components/logo.tsx.
-// Same exports and props. The "X" is drawn on upstream's own pixel grid (4 x 5 blocks)
-// so it sits naturally beside the unchanged "code" glyphs; its centre block carries
-// the brand purple.
+// Same exports and props. The mark is an "S" on upstream's own pixel grid (4 x 5 blocks), the
+// same letter shape the wordmark uses; its middle bar carries the brand purple.
 import { Show, type ComponentProps } from "solid-js"
 import { useTheme } from "../theme/context"
 
@@ -18,7 +17,7 @@ export const BrandLockup = () => {
   return (
     <div
       data-component="brand-lockup"
-      aria-label="XCode by SimplifyX"
+      aria-label="Simplify Code by SimplifyX"
       style={{
         display: "flex",
         "align-items": "center",
@@ -34,13 +33,13 @@ export const BrandLockup = () => {
     >
       <svg viewBox="0 0 16 20" width="11" height="14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         {/* the purple titlebar strip sets --brand-lockup-accent, because purple on purple would vanish */}
-        <path d="M4 8H12V12H4V8Z" fill={`var(--brand-lockup-accent, ${BRAND})`} />
+        <path d="M0 8H16V12H0V8Z" fill={`var(--brand-lockup-accent, ${BRAND})`} />
         <path
-          d="M0 0H4V8H0V0ZM12 0H16V8H12V0ZM0 12H4V20H0V12ZM12 12H16V20H12V12Z"
+          d="M0 0H16V4H0V0ZM0 4H4V8H0V4ZM12 12H16V16H12V12ZM0 16H16V20H0V16Z"
           fill="var(--v2-text-text-base, var(--icon-strong-base))"
         />
       </svg>
-      <span style={{ "font-size": "12px", "font-weight": "600", color: "var(--v2-text-text-base, var(--text-strong))" }}>XCode</span>
+      <span style={{ "font-size": "12px", "font-weight": "600", color: "var(--v2-text-text-base, var(--text-strong))" }}>Simplify Code</span>
       <span style={{ "font-size": "11px", color: "var(--v2-text-text-muted, var(--text-weak))" }}>by SimplifyX</span>
     </div>
   )
@@ -101,10 +100,10 @@ export const Mark = (props: { class?: string }) => {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <path data-slot="logo-logo-mark-shadow" d="M4 8H12V12H4V8Z" fill={BRAND} />
+      <path data-slot="logo-logo-mark-shadow" d="M0 8H16V12H0V8Z" fill={BRAND} />
       <path
         data-slot="logo-logo-mark-o"
-        d="M0 0H4V8H0V0ZM12 0H16V8H12V0ZM0 12H4V20H0V12ZM12 12H16V20H12V12Z"
+        d="M0 0H16V4H0V0ZM0 4H4V8H0V4ZM12 12H16V16H12V12ZM0 16H16V20H0V16Z"
         fill="var(--icon-strong-base)"
       />
     </svg>
@@ -121,9 +120,9 @@ export const Splash = (props: Pick<ComponentProps<"svg">, "ref" | "class">) => {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <path d="M20 40H60V60H20V40Z" fill={BRAND} />
+      <path d="M0 40H80V60H0V40Z" fill={BRAND} />
       <path
-        d="M0 0H20V40H0V0ZM60 0H80V40H60V0ZM0 60H20V100H0V60ZM60 60H80V100H60V60Z"
+        d="M0 0H80V20H0V0ZM0 20H20V40H0V20ZM60 60H80V80H60V60ZM0 80H80V100H0V80Z"
         fill="var(--icon-strong-base)"
       />
     </svg>
@@ -134,19 +133,13 @@ export const Logo = (props: { class?: string }) => {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 234 42"
+      viewBox="0 0 306 42"
       fill="none"
       classList={{ [props.class ?? ""]: !!props.class }}
     >
-      {/* "X", then upstream's "code" glyphs shifted left so the five letters stay centred in the original box */}
-      <g>
-        <path d="M51 18H63V24H51V18Z" fill={BRAND} />
-        <path
-          d="M45 6H51V18H45V6ZM63 6H69V18H63V6ZM45 24H51V36H45V24ZM63 24H69V36H63V24Z"
-          fill="var(--icon-strong-base)"
-        />
-      </g>
-      <g transform="translate(-45 0)">
+      {/* "simplify" in upstream's pixel font (script/make-wordmark.ts), then upstream's own "code" glyphs moved to follow it */}
+      <path d="M30 0H36V6H30ZM108 0H114V6H108ZM120 0H126V6H120ZM138 0H150V6H138ZM0 6H24V12H0ZM42 6H72V12H42ZM78 6H102V12H78ZM108 6H114V12H108ZM138 6H144V12H138ZM156 6H162V12H156ZM174 6H180V12H174ZM0 12H6V18H0ZM30 12H36V18H30ZM42 12H48V18H42ZM54 12H60V18H54ZM66 12H72V18H66ZM78 12H84V18H78ZM96 12H102V18H96ZM108 12H114V18H108ZM120 12H126V18H120ZM132 12H150V18H132ZM156 12H162V18H156ZM174 12H180V18H174ZM0 18H24V24H0ZM30 18H36V24H30ZM42 18H48V24H42ZM54 18H60V24H54ZM66 18H72V24H66ZM78 18H84V24H78ZM96 18H102V24H96ZM108 18H114V24H108ZM120 18H126V24H120ZM138 18H144V24H138ZM156 18H162V24H156ZM174 18H180V24H174ZM18 24H24V30H18ZM30 24H36V30H30ZM42 24H48V30H42ZM54 24H60V30H54ZM66 24H72V30H66ZM78 24H84V30H78ZM96 24H102V30H96ZM108 24H114V30H108ZM120 24H126V30H120ZM138 24H144V30H138ZM156 24H162V30H156ZM174 24H180V30H174ZM0 30H24V36H0ZM30 30H36V36H30ZM42 30H48V36H42ZM54 30H60V36H54ZM66 30H72V36H66ZM78 30H102V36H78ZM108 30H114V36H108ZM120 30H126V36H120ZM138 30H144V36H138ZM156 30H180V36H156ZM78 36H84V42H78ZM174 36H180V42H174Z" fill={BRAND} />
+      <g transform="translate(72 0)">
         <path d="M144 30H126V18H144V30Z" fill="var(--icon-weak-base)" />
         <path d="M144 12H126V30H144V36H120V6H144V12Z" fill="var(--icon-strong-base)" />
         <path d="M168 30H156V18H168V30Z" fill="var(--icon-weak-base)" />

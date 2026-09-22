@@ -24,7 +24,7 @@ export function appName(brand: Brand): string {
   return `${launcherName(brand)}.app`
 }
 
-/** "@simplifyx/xcode" -> "com.simplifyx.xcode.terminal" (the desktop app is ".desktop") */
+/** "@simplifyx/simplify-code" -> "com.simplifyx.simplify-code.terminal" (the desktop app is ".desktop") */
 export function bundleId(brand: Brand): string {
   return `${brandBundleId(brand)}.terminal`
 }
@@ -109,7 +109,7 @@ cd "$project" && exec "$bin"
 
 /** Build every size macOS wants from one 1024px PNG. */
 async function writeIcns(iconPng: string, out: string): Promise<void> {
-  const work = mkdtempSync(path.join(tmpdir(), "xcode-iconset-"))
+  const work = mkdtempSync(path.join(tmpdir(), "simplify-code-iconset-"))
   try {
     const iconset = path.join(work, "AppIcon.iconset")
     mkdirSync(iconset)

@@ -1,6 +1,6 @@
 # Company-managed configuration
 
-`opencode.jsonc` in this folder is the configuration IT installs on every developer machine. It applies to the XCode desktop app, the `opencode` terminal UI and `opencode web` alike, because all three read the same configuration.
+`opencode.jsonc` in this folder is the configuration IT installs on every developer machine. It applies to the Simplify Code desktop app, the `opencode` terminal UI and `opencode web` alike, because all three read the same configuration.
 
 A managed file loads **above** a developer's own `~/.config/opencode/opencode.json` and above any project's `opencode.json`. Developers cannot override it. That is the point, and also the risk: a mistake here breaks everyone at once and cannot be fixed locally. Always run the checker before deploying.
 
@@ -39,9 +39,9 @@ Upstream's documentation says to use `experimental.policies` instead of the olde
 | Windows | `%ProgramData%\opencode\opencode.jsonc` |
 | Linux | `/etc/opencode/opencode.jsonc` |
 
-XCode also reads the same locations under its own name, `xcode` instead of `opencode` (for example `/Library/Application Support/xcode/xcode.jsonc`), after upstream's, so they win. Either works; pick one and use it everywhere. The `opencode` paths have the advantage that they also govern stock OpenCode if someone installs it. Install it owned by root or Administrators and not writable by ordinary users.
+Simplify Code also reads the same locations under its own name, `simplify-code` instead of `opencode` (for example `/Library/Application Support/simplify-code/simplify-code.jsonc`), after upstream's, so they win. Either works; pick one and use it everywhere. The `opencode` paths have the advantage that they also govern stock OpenCode if someone installs it. Install it owned by root or Administrators and not writable by ordinary users.
 
-On macOS with an MDM (Jamf, Intune, Kandji, FleetDM) there is a stronger option: a configuration profile for the preference domain `com.simplifyx.xcode.managed` (or upstream's `ai.opencode.managed`), whose keys are the same keys as this file. It outranks even the file above. Upstream's config documentation has the `.mobileconfig` template. A profile cannot carry comments, so strip them first.
+On macOS with an MDM (Jamf, Intune, Kandji, FleetDM) there is a stronger option: a configuration profile for the preference domain `com.simplifyx.simplify-code.managed` (or upstream's `ai.opencode.managed`), whose keys are the same keys as this file. It outranks even the file above. Upstream's config documentation has the `.mobileconfig` template. A profile cannot carry comments, so strip them first.
 
 ## Try it without admin rights
 

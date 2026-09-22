@@ -1,9 +1,9 @@
 {
-  "productName": "XCode",
+  "productName": "Simplify Code",
   "tagline": "by SimplifyX",
   "companyName": "SimplifyX",
   "npmScope": "@simplifyx",
-  "npmPackage": "@simplifyx/xcode",
-  "releaseRepo": "simplifyx/xcode-releases",
+  "npmPackage": "@simplifyx/simplify-code",
+  "releaseRepo": "simplifyx/simplify-code-releases",
   "upstreamRepo": "anomalyco/opencode"
 }

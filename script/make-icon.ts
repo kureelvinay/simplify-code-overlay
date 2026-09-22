@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // Generates brand/icon.png (1024x1024 RGBA): a SimplifyX-purple rounded square with a
-// white X and a teal terminal cursor. Shapes are signed-distance fields, so edges are
+// white pixel-font S (the same letter shape as the wordmark) and a teal terminal cursor. Shapes are signed-distance fields, so edges are
 // anti-aliased without supersampling. Re-run after changing the colours, commit the PNG.
 //
 //   bun run script/make-icon.ts
@@ -40,9 +40,23 @@ function sdCapsule(px: number, py: number, ax: number, ay: number, bx: number, b
 const coverage = (distance: number) => Math.max(0, Math.min(1, 0.5 - distance))
 const mix = (a: RGB, b: RGB, t: number): RGB => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
 
-// The X sits left of centre to leave room for the cursor, like a prompt: "X_"
-const X = { cx: -70, cy: -25, extent: 185, stroke: 52 }
-const CURSOR = { x1: 225, x2: 335, y: 200, stroke: 30 }
+function sdBox(x: number, y: number, cx: number, cy: number, halfW: number, halfH: number, r: number): number {
+  const qx = Math.abs(x - cx) - halfW + r
+  const qy = Math.abs(y - cy) - halfH + r
+  return Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - r
+}
+
+// The S sits left of centre to leave room for the cursor, like a prompt: "S_". It is the wordmark's
+// S: 4 blocks wide, 5 tall, as three bars joined by two single blocks.
+const S = { left: -290, top: -230, block: 92 }
+const S_BOXES: [col: number, row: number, cols: number, rows: number][] = [
+  [0, 0, 4, 1],
+  [0, 1, 1, 1],
+  [0, 2, 4, 1],
+  [3, 3, 1, 1],
+  [0, 4, 4, 1],
+]
+const CURSOR = { x1: 165, x2: 275, y: 200, stroke: 30 }
 
 const raw = Buffer.alloc(SIZE * (SIZE * 4 + 1)) // one filter byte per row
 for (let y = 0; y < SIZE; y++) {
@@ -56,9 +70,14 @@ for (let y = 0; y < SIZE; y++) {
     const t = Math.max(0, Math.min(1, (px + py) / (4 * PLATE_HALF) + 0.5))
     let color = mix(TOP, BOTTOM, t)
 
-    const arm1 = sdCapsule(px, py, X.cx - X.extent, X.cy - X.extent, X.cx + X.extent, X.cy + X.extent, X.stroke)
-    const arm2 = sdCapsule(px, py, X.cx - X.extent, X.cy + X.extent, X.cx + X.extent, X.cy - X.extent, X.stroke)
-    color = mix(color, WHITE, coverage(Math.min(arm1, arm2)))
+    let letter = Infinity
+    for (const [col, row, cols, rows] of S_BOXES) {
+      const halfW = (cols * S.block) / 2
+      const halfH = (rows * S.block) / 2
+      // +1 so neighbouring boxes overlap and no hairline shows at the joins
+      letter = Math.min(letter, sdBox(px, py, S.left + col * S.block + halfW, S.top + row * S.block + halfH, halfW + 1, halfH + 1, 0)) // square corners: rounded ones leave notches where the boxes join
+    }
+    color = mix(color, WHITE, coverage(letter))
     color = mix(color, TEAL, coverage(sdCapsule(px, py, CURSOR.x1, CURSOR.y, CURSOR.x2, CURSOR.y, CURSOR.stroke)))
 
     const o = row + 1 + x * 4

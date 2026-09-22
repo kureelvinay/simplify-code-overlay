@@ -37,7 +37,7 @@ describe("parseArgs", () => {
 
 describe("checkBunVersion", () => {
   const withPackageManager = (pm: string | undefined) => {
-    const dir = mkdtempSync(path.join(tmpdir(), "xcode-bun-"))
+    const dir = mkdtempSync(path.join(tmpdir(), "simplify-code-bun-"))
     writeFileSync(path.join(dir, "package.json"), JSON.stringify(pm ? { packageManager: pm } : {}))
     return dir
   }
