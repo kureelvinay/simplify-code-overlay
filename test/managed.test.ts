@@ -95,9 +95,11 @@ describe("the shipped draft, managed/simplify-code.jsonc", () => {
     expect(problems).toHaveLength(1)
     expect(problems[0]).toContain("placeholder")
   })
-  test("declares the required plugins, so every machine loads them and nobody can remove them", () => {
+  test("declares the required plugins that cannot be shipped inside the app", () => {
     const config = parseJsonc(text) as any
-    expect(config.plugin).toEqual(["superpowers@git+https://github.com/obra/superpowers.git#v6.3.0", "@devtheops/opencode-plugin-otel"])
+    // superpowers is vendored into the team folder (it has no native dependencies); otel is 357 MB of
+    // platform-specific native modules and must be installed per machine, so it stays here
+    expect(config.plugin).toEqual(["@devtheops/opencode-plugin-otel"])
   })
   test("carries the four gateway models and the current defaults", () => {
     const config = parseJsonc(text) as any

@@ -11,7 +11,7 @@ const brand = loadBrand()
 describe("the team folder in the repo", () => {
   test("holds agents, commands, skills and local plugins, and none of the app's generated files", () => {
     const entries = readdirSync(TEAM_DIR).sort()
-    expect(entries).toEqual(["agents", "commands", "plugins", "skills"])
+    expect(entries).toEqual(["agents", "commands", "plugins", "skills", "vendor"])
     for (const rel of ["node_modules", "package.json", ".gitignore", "simplify-code.json", "opencode.json"]) {
       expect(existsSync(path.join(TEAM_DIR, rel))).toBe(false)
     }
@@ -28,6 +28,20 @@ describe("the team folder in the repo", () => {
     expect(existsSync(path.join(TEAM_DIR, "commands", "impeccable.md"))).toBe(true)
     // its four agents are Claude Code specific and impeccable's own OpenCode build leaves them out
     expect(existsSync(path.join(TEAM_DIR, "agents", "impeccable-finish-reviewer.md"))).toBe(false)
+  })
+
+  test("carries superpowers, vendored whole (its plugin finds its skills relative to itself), with a shim the app auto-discovers", () => {
+    const pkg = path.join(TEAM_DIR, "vendor", "superpowers")
+    for (const f of ["LICENSE", "VENDORED.md", ".opencode/plugins/superpowers.js", "skills/using-superpowers/SKILL.md"]) {
+      expect(existsSync(path.join(pkg, f))).toBe(true)
+    }
+    expect((readdirSync(path.join(pkg, "skills"), { recursive: true }) as string[]).filter((f) => f.endsWith("SKILL.md")).length).toBeGreaterThanOrEqual(10)
+    const shim = readFileSync(path.join(TEAM_DIR, "plugins", "superpowers.js"), "utf8")
+    expect(shim).toContain('from "../vendor/superpowers/.opencode/plugins/superpowers.js"')
+    expect(shim).toContain("SuperpowersPlugin")
+    // vendored, so it must no longer be fetched from GitHub on first launch (it would load twice)
+    const managed = readFileSync(path.join(import.meta.dir, "../managed/simplify-code.jsonc"), "utf8")
+    expect(managed).not.toContain("superpowers@git")
   })
 
   test("carries no literal secret", () => {
