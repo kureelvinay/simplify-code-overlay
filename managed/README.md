@@ -31,6 +31,10 @@ Upstream's documentation says to use `experimental.policies` instead of the olde
 
    It rejects a placeholder, plain-http or loopback gateway address, a literal secret anywhere in the file, sharing or self-update left on, default models that do not exist, a whitelist that does not match the models, and an incomplete provider lock.
 
+## Shipping it
+
+`bun run src/pipeline.ts --team-package` bundles this file with the `team/` folder and root-only installers (`install-team.sh`, `install-team.ps1`). That is the supported way to install it; the paths below are what the installers use.
+
 ## Where to install it
 
 | Platform | Path |
