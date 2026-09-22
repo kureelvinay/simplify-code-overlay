@@ -109,9 +109,9 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and thirty-seven entries: seventy-six file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(137)
-    expect(UPSTREAM_FILES).toHaveLength(76)
+  test("has one hundred and fifty-two entries: eighty-three file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(152)
+    expect(UPSTREAM_FILES).toHaveLength(83)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
       "packages/desktop/src/renderer/i18n/*.ts",
@@ -710,6 +710,26 @@ describe("no traces of the upstream name on an installed machine", () => {
       const code = read(file).split("\n").filter((l) => !l.trim().startsWith("//")).join("\n")
       expect(code).not.toMatch(/[`"']opencode /)
     }
+  })
+
+  test("every command description in --help names the product, and the server's defaults do too", () => {
+    const files = [
+      "packages/opencode/src/cli/network.ts",
+      "packages/opencode/src/cli/cmd/tui.ts",
+      "packages/opencode/src/cli/cmd/uninstall.ts",
+      "packages/opencode/src/cli/cmd/pr.ts",
+      "packages/opencode/src/cli/cmd/attach.ts",
+      "packages/opencode/src/cli/cmd/web.ts",
+      "packages/opencode/src/cli/cmd/run.ts",
+    ]
+    for (const file of files) expect(read(file)).not.toMatch(/describe: ["`][^"`]*opencode/)
+    expect(read("packages/opencode/src/cli/cmd/tui.ts")).toContain('describe: "start Simplify Code tui"')
+    expect(read("packages/opencode/src/cli/cmd/uninstall.ts")).toContain('describe: "uninstall Simplify Code and remove all related files"')
+    expect(read("packages/opencode/src/cli/network.ts")).toContain('default: "simplify-code.local"')
+    expect(read("packages/opencode/src/server/mdns.ts")).toContain('domain ?? "simplify-code.local"')
+    expect(read("packages/opencode/src/server/auth.ts")).toContain('EffectConfig.withDefault("simplify-code")')
+    expect(read("packages/opencode/src/server/auth.ts")).toContain('Flag.OPENCODE_SERVER_USERNAME ?? "simplify-code"')
+    expect(read("packages/opencode/src/cli/cmd/run.ts")).toContain('$0: "simplify-code",')
   })
 
   test("deep links use the product's own scheme end to end", () => {
