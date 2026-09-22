@@ -1,7 +1,7 @@
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import path from "node:path"
 import { $ } from "bun"
-import type { Brand } from "./brand"
+import { placeholders, type Brand } from "./brand"
 import { countOccurrences, TransformError } from "./rebrand"
 
 export interface PlatformPackage {
@@ -17,8 +17,10 @@ export function scopedName(upstreamName: string, brand: Brand): string {
   return brand.npmPackage + upstreamName.slice(UPSTREAM_PREFIX.length - 1) // keep the leading "-"
 }
 
-export function binaryName(): string {
-  return process.platform === "win32" ? "opencode.exe" : "opencode"
+/** The command's file name. Upstream's build (transform 115) names the binary after the product slug. */
+export function binaryName(brand: Brand): string {
+  const slug = placeholders(brand).productSlug
+  return process.platform === "win32" ? `${slug}.exe` : slug
 }
 
 /**
@@ -60,7 +62,8 @@ export function metaPackageJson(
     version,
     description: `${brand.productName} ${brand.tagline}`,
     license: "MIT",
-    bin: { opencode: "./bin/opencode.exe" },
+    // upstream's trick: the bin entry points at a placeholder that postinstall replaces with the real binary
+    bin: { [placeholders(brand).productSlug]: `./bin/${placeholders(brand).productSlug}.exe` },
     scripts: { postinstall: "node ./postinstall.mjs" },
     os: ["darwin", "linux", "win32"],
     cpu: ["arm64", "x64"],
@@ -69,11 +72,20 @@ export function metaPackageJson(
 }
 
 export const POSTINSTALL_ANCHOR = "const base = `opencode-${platform}-${arch}`"
+const POSTINSTALL_ANCHORS: [find: string, replace: (brand: Brand, slug: string) => string][] = [
+  [POSTINSTALL_ANCHOR, (brand) => "const base = `" + brand.npmPackage + "-${platform}-${arch}`"],
+  ['const sourceBinary = platform === "windows" ? "opencode.exe" : "opencode"', (_b, slug) => `const sourceBinary = platform === "windows" ? "${slug}.exe" : "${slug}"`],
+  ['const targetBinary = path.join(__dirname, "bin", "opencode.exe")', (_b, slug) => `const targetBinary = path.join(__dirname, "bin", "${slug}.exe")`],
+]
 
 export function rebrandPostinstall(source: string, brand: Brand): string {
-  const actual = countOccurrences(source, POSTINSTALL_ANCHOR)
-  if (actual !== 1) throw new TransformError("packages/opencode/script/postinstall.mjs", POSTINSTALL_ANCHOR, 1, actual)
-  return source.replace(POSTINSTALL_ANCHOR, "const base = `" + brand.npmPackage + "-${platform}-${arch}`")
+  const slug = placeholders(brand).productSlug
+  for (const [find, replace] of POSTINSTALL_ANCHORS) {
+    const actual = countOccurrences(source, find)
+    if (actual !== 1) throw new TransformError("packages/opencode/script/postinstall.mjs", find, 1, actual)
+    source = source.replace(find, replace(brand, slug))
+  }
+  return source
 }
 
 /** Replaced by the real binary when postinstall runs; explains itself otherwise. */
@@ -109,7 +121,7 @@ export function writeMetaPackage(
   const postinstall = readFileSync(path.join(upstreamRoot, "packages/opencode/script/postinstall.mjs"), "utf8")
   writeFileSync(path.join(dir, "postinstall.mjs"), rebrandPostinstall(postinstall, brand))
   copyFileSync(path.join(upstreamRoot, "LICENSE"), path.join(dir, "LICENSE"))
-  const bin = path.join(dir, "bin", "opencode.exe")
+  const bin = path.join(dir, "bin", `${placeholders(brand).productSlug}.exe`)
   writeFileSync(bin, placeholderBin(brand))
   chmodSync(bin, 0o755)
   return dir

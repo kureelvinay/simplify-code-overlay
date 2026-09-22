@@ -13,7 +13,7 @@ import { sha256Sums } from "./bundle"
  */
 
 export const TEAM_DIR = fileURLToPath(new URL("../team/", import.meta.url))
-const MANAGED_SOURCE = fileURLToPath(new URL("../managed/opencode.jsonc", import.meta.url))
+const MANAGED_SOURCE = fileURLToPath(new URL("../managed/simplify-code.jsonc", import.meta.url))
 
 const slug = (brand: Brand) => placeholders(brand).productSlug
 const envVar = (brand: Brand) => `${slug(brand).toUpperCase().replace(/[^A-Z0-9]/g, "_")}_TEAM_ROOT`
@@ -143,10 +143,10 @@ Add \`-PluginLock\` for the same effect. Re-running either script updates everyt
 ## Check a machine
 
 \`\`\`bash
-opencode debug config
+${s} debug config
 \`\`\`
 
-\`share\` must be \`disabled\`, \`enabled_providers\` exactly \`["company-gateway"]\`, and the shared agents must appear in \`opencode agent list\`. Do not paste the output anywhere if the machine still has a literal key in a personal config.
+\`share\` must be \`disabled\`, \`enabled_providers\` exactly \`["company-gateway"]\`, and the shared agents must appear in \`${s} agent list\`. Do not paste the output anywhere if the machine still has a literal key in a personal config.
 
 ## Before the first deployment
 

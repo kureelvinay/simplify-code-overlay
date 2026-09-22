@@ -88,8 +88,8 @@ describe("lintManagedConfig", () => {
   })
 })
 
-describe("the shipped draft, managed/opencode.jsonc", () => {
-  const text = readFileSync(path.join(import.meta.dir, "../managed/opencode.jsonc"), "utf8")
+describe("the shipped draft, managed/simplify-code.jsonc", () => {
+  const text = readFileSync(path.join(import.meta.dir, "../managed/simplify-code.jsonc"), "utf8")
   test("is deployable except for the one thing only IT knows: the gateway URL", () => {
     const problems = lintManagedConfig(text)
     expect(problems).toHaveLength(1)

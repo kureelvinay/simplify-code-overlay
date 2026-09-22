@@ -160,7 +160,7 @@ export async function local(brand: Brand, version: string, skipWebUi: boolean): 
   const { upstreamRoot, distDir } = await prepare(brand, version, { single: true, skipWebUi })
   const platforms = rebrandPlatformPackages(distDir, brand, upstreamRoot)
   const host = hostPackage(platforms)
-  await smokeTest(path.join(host.dir, "bin", binaryName()), version, brand)
+  await smokeTest(path.join(host.dir, "bin", binaryName(brand)), version, brand)
 
   console.log("\n== package for local install ==")
   const out = path.join(DIST, version, "local")
@@ -192,20 +192,20 @@ export async function local(brand: Brand, version: string, skipWebUi: boolean): 
   // npm's own global bin dir is where our shim really landed; `which` only tells us what wins on PATH.
   const prefix = (await $`npm prefix -g`.quiet().nothrow().text()).trim()
   const npmBinDir = prefix ? (process.platform === "win32" ? prefix : path.join(prefix, "bin")) : ""
-  const lookup =
-    process.platform === "win32" ? await $`where opencode`.quiet().nothrow().text() : await $`which opencode`.quiet().nothrow().text()
+  const cmd = placeholders(brand).productSlug
+  const lookup = process.platform === "win32" ? await $`where ${cmd}`.quiet().nothrow().text() : await $`which ${cmd}`.quiet().nothrow().text()
   const onPath = lookup.trim().split("\n")[0]?.trim() ?? ""
-  const installedBin = npmBinDir ? path.join(npmBinDir, "opencode") : onPath
-  const ver = await $`opencode --version`.nothrow().text()
+  const installedBin = npmBinDir ? path.join(npmBinDir, cmd) : onPath
+  const ver = await $`${cmd} --version`.nothrow().text()
   console.log(`\n${brand.productName} ${brand.tagline} installed.\n  binary: ${installedBin}\n  version: ${ver.trim()}`)
   if (npmBinDir && onPath && path.dirname(onPath) !== npmBinDir) {
     console.log(
-      `\nwarning: \`opencode\` on your PATH resolves to ${onPath}, not ${installedBin}.\n` +
-        `  another OpenCode install (brew, curl installer, ...) is shadowing the branded one.\n` +
+      `\nwarning: \`${cmd}\` on your PATH resolves to ${onPath}, not ${installedBin}.\n` +
+        `  another install is shadowing this one.\n` +
         `  remove it, or put ${npmBinDir} first on PATH.`,
     )
   }
-  console.log("\nRun `opencode` to see the home screen.")
+  console.log(`\nRun \`${cmd}\` to see the home screen.`)
 }
 
 /** macOS only: put `<productName> Terminal.app` in ~/Applications. Opt-in via --launcher; the desktop app is the default way in. */
@@ -218,9 +218,9 @@ export async function installLauncher(brand: Brand, version: string): Promise<st
   return app
 }
 
-/** Version for the launcher's Info.plist when none was given: whatever `opencode` is installed. */
-async function installedVersion(): Promise<string> {
-  const out = await $`opencode --version`.quiet().nothrow().text()
+/** Version for the launcher's Info.plist when none was given: whatever build is installed. */
+async function installedVersion(brand: Brand): Promise<string> {
+  const out = await $`${placeholders(brand).productSlug} --version`.quiet().nothrow().text()
   return out.match(/\d+\.\d+\.\d+/)?.[0] ?? "1.0.0"
 }
 
@@ -277,7 +277,7 @@ async function release(brand: Brand, version: string): Promise<void> {
   }
   const { upstreamRoot, distDir } = await prepare(brand, version, { single: false, skipWebUi: false })
   const platforms = rebrandPlatformPackages(distDir, brand, upstreamRoot)
-  await smokeTest(path.join(hostPackage(platforms).dir, "bin", binaryName()), version, brand)
+  await smokeTest(path.join(hostPackage(platforms).dir, "bin", binaryName(brand)), version, brand)
   await signHook(distDir)
 
   console.log("\n== package ==")
@@ -381,7 +381,7 @@ export async function desktopPackage(brand: Brand, version: string): Promise<voi
 export async function packageBundle(brand: Brand, version: string): Promise<void> {
   const { upstreamRoot, distDir } = await prepare(brand, version, { single: false, skipWebUi: false })
   const platforms = rebrandPlatformPackages(distDir, brand, upstreamRoot)
-  await smokeTest(path.join(hostPackage(platforms).dir, "bin", binaryName()), version, brand)
+  await smokeTest(path.join(hostPackage(platforms).dir, "bin", binaryName(brand)), version, brand)
   await signHook(distDir)
 
   console.log("\n== bundle ==")
@@ -417,7 +417,7 @@ async function main() {
   const brand = loadBrand()
   if (args.mode === "check") return check(brand)
   if (args.mode === "team-package") return teamPackage(brand)
-  if (args.mode === "launcher") return void (await installLauncher(brand, args.version ?? (await installedVersion())))
+  if (args.mode === "launcher") return void (await installLauncher(brand, args.version ?? (await installedVersion(brand))))
   const version = args.version ?? (await latestUpstreamVersion(brand))
   if (args.mode === "local") return local(brand, version, args.skipWebUi)
   if (args.mode === "desktop") return desktop(brand, version)

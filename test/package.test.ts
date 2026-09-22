@@ -27,7 +27,7 @@ function fakePlatform(name: string) {
   const dir = path.join(dist, name)
   mkdirSync(path.join(dir, "bin"), { recursive: true })
   writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name, version: "1.18.31", preferUnplugged: true, os: ["darwin"], cpu: ["arm64"] }, null, 2))
-  writeFileSync(path.join(dir, "bin/opencode"), "#!/bin/sh\necho 1.18.31\n")
+  writeFileSync(path.join(dir, "bin/simplify-code"), "#!/bin/sh\necho 1.18.31\n")
 }
 
 beforeEach(() => {
@@ -75,7 +75,7 @@ describe("metaPackageJson", () => {
     const json = metaPackageJson(brand, "1.18.31", platforms) as any
     expect(json.name).toBe("@simplifyx/simplify-code")
     expect(json.version).toBe("1.18.31")
-    expect(json.bin).toEqual({ opencode: "./bin/opencode.exe" })
+    expect(json.bin).toEqual({ "simplify-code": "./bin/simplify-code.exe" })
     expect(json.scripts).toEqual({ postinstall: "node ./postinstall.mjs" })
     expect(json.license).toBe("MIT")
     expect(json.description).toBe("Simplify Code by SimplifyX")
@@ -98,7 +98,8 @@ describe("rebrandPostinstall", () => {
     expect(out).toContain("const base = `@simplifyx/simplify-code-${platform}-${arch}`")
     expect(out).not.toContain("const base = `opencode-${platform}-${arch}`")
     // the binary file names inside the platform packages are unchanged
-    expect(out).toContain('const sourceBinary = platform === "windows" ? "opencode.exe" : "opencode"')
+    expect(out).toContain('const sourceBinary = platform === "windows" ? "simplify-code.exe" : "simplify-code"')
+    expect(out).toContain('const targetBinary = path.join(__dirname, "bin", "simplify-code.exe")')
   })
   test("fails loudly on drift", () => {
     expect(() => rebrandPostinstall("nothing here", brand)).toThrow(TransformError)
@@ -119,10 +120,10 @@ describe("writeMetaPackage", () => {
     const platforms = rebrandPlatformPackages(dist, brand, upstreamRoot)
     const metaDir = writeMetaPackage(dist, brand, "1.18.31", platforms, upstreamRoot)
     expect(path.basename(metaDir)).toBe("meta")
-    for (const f of ["package.json", "postinstall.mjs", "LICENSE", "bin/opencode.exe"]) {
+    for (const f of ["package.json", "postinstall.mjs", "LICENSE", "bin/simplify-code.exe"]) {
       expect(existsSync(path.join(metaDir, f))).toBe(true)
     }
-    expect(statSync(path.join(metaDir, "bin/opencode.exe")).mode & 0o111).not.toBe(0)
+    expect(statSync(path.join(metaDir, "bin/simplify-code.exe")).mode & 0o111).not.toBe(0)
     const json = JSON.parse(readFileSync(path.join(metaDir, "package.json"), "utf8"))
     expect(Object.keys(json.optionalDependencies)).toHaveLength(2)
 

@@ -1,6 +1,6 @@
 # Company-managed configuration
 
-`opencode.jsonc` in this folder is the configuration IT installs on every developer machine. It applies to the Simplify Code desktop app, the `opencode` terminal UI and `opencode web` alike, because all three read the same configuration.
+`simplify-code.jsonc` in this folder is the configuration IT installs on every developer machine. It applies to the Simplify Code desktop app, the `simplify-code` terminal UI and `simplify-code web` alike, because all three read the same configuration.
 
 A managed file loads **above** a developer's own `~/.config/opencode/opencode.json` and above any project's `opencode.json`. Developers cannot override it. That is the point, and also the risk: a mistake here breaks everyone at once and cannot be fixed locally. Always run the checker before deploying.
 
@@ -39,11 +39,11 @@ Upstream's documentation says to use `experimental.policies` instead of the olde
 
 | Platform | Path |
 |---|---|
-| macOS | `/Library/Application Support/opencode/opencode.jsonc` |
-| Windows | `%ProgramData%\opencode\opencode.jsonc` |
-| Linux | `/etc/opencode/opencode.jsonc` |
+| macOS | `/Library/Application Support/simplify-code/simplify-code.jsonc` |
+| Windows | `%ProgramData%\simplify-code\simplify-code.jsonc` |
+| Linux | `/etc/simplify-code/simplify-code.jsonc` |
 
-Simplify Code also reads the same locations under its own name, `simplify-code` instead of `opencode` (for example `/Library/Application Support/simplify-code/simplify-code.jsonc`), after upstream's, so they win. Either works; pick one and use it everywhere. The `opencode` paths have the advantage that they also govern stock OpenCode if someone installs it. Install it owned by root or Administrators and not writable by ordinary users.
+`install-team.sh` / `install-team.ps1` put it there, owned by root or Administrators and not writable by ordinary users. (Upstream's own managed location, `…/opencode/opencode.jsonc`, is still honoured if present, but nothing here creates it.)
 
 On macOS with an MDM (Jamf, Intune, Kandji, FleetDM) there is a stronger option: a configuration profile for the preference domain `com.simplifyx.simplify-code.managed` (or upstream's `ai.opencode.managed`), whose keys are the same keys as this file. It outranks even the file above. Upstream's config documentation has the `.mobileconfig` template. A profile cannot carry comments, so strip them first.
 
@@ -52,8 +52,8 @@ On macOS with an MDM (Jamf, Intune, Kandji, FleetDM) there is a stronger option:
 Upstream has a test hook that points the managed location at any folder, which makes a dry run possible on one machine before touching `/Library`:
 
 ```bash
-mkdir -p /tmp/managed-test && cp managed/opencode.jsonc /tmp/managed-test/
-OPENCODE_TEST_MANAGED_CONFIG_DIR=/tmp/managed-test opencode models
+mkdir -p /tmp/managed-test && cp managed/simplify-code.jsonc /tmp/managed-test/
+OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR=/tmp/managed-test simplify-code models
 ```
 
 Only `company-gateway/...` models should be listed.
@@ -61,11 +61,11 @@ Only `company-gateway/...` models should be listed.
 ## Verify on a deployed machine
 
 ```bash
-opencode models
+simplify-code models
 ```
 
 ```bash
-opencode debug config
+simplify-code debug config
 ```
 
 The first must list only gateway models. The second prints the resolved configuration: `share` must be `disabled`, `autoupdate` `false`, and `enabled_providers` exactly `["company-gateway"]`, whatever the developer's own config says. `debug config` also prints provider options, so do not paste its output anywhere if a machine still has a literal key in a personal config.
