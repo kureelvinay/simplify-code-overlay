@@ -3,6 +3,7 @@ import { homedir } from "node:os"
 import path from "node:path"
 import { $ } from "bun"
 import { bundleId, placeholders, type Brand } from "./brand"
+import { stageCompanySet } from "./team-bundle"
 
 /**
  * Builds upstream's Electron desktop app from an already-rebranded checkout.
@@ -99,6 +100,9 @@ export async function buildDesktopTargets(
   }
 
   rmSync(path.join(dir, "dist"), { recursive: true, force: true })
+  // the company set travels inside the app (electron-builder copies company/ to resources/company)
+  console.log("\n== desktop: stage the company set ==")
+  await stageCompanySet(path.join(dir, "company"), brand)
   await run("prepare", $`bun ./scripts/prepare.ts`, desktopBuildEnv(baseEnv, version))
 
   const built: { target: DesktopTarget; path: string }[] = []
@@ -150,6 +154,7 @@ export async function verifyDesktop(app: string, brand: Brand, target: DesktopTa
   assertTerminalModule(bytes, target, (m) => {
     throw new DesktopBuildError("verify", m)
   })
+  verifyCompanySet(path.join(app, "Contents", "Resources"), brand)
   const exe = (await $`file -b ${path.join(app, "Contents", "MacOS", brand.productName)}`.quiet().nothrow().text()).trim()
   const wanted = target.arch === "arm64" ? "arm64" : "x86_64"
   if (!exe.includes(wanted)) throw new DesktopBuildError("verify", `the app is ${JSON.stringify(exe)}, expected a ${wanted} program`)
@@ -218,7 +223,18 @@ export function verifyWindowsDesktop(installer: string, brand: Brand, target: De
   if (!bytes.includes(`${brand.productName} Desktop`)) fail(`app.asar does not contain "${brand.productName} Desktop"`)
   if (bytes.includes('"OpenCode Desktop"')) fail('app.asar still contains "OpenCode Desktop"')
   assertTerminalModule(bytes, target, fail)
+  verifyCompanySet(path.join(unpacked, "resources"), brand)
   const native = path.join(unpacked, "resources", "app.asar.unpacked", "node_modules", "@lydell", `node-pty-win32-${target.arch}`)
   if (!existsSync(native)) fail(`missing ${native}`)
   console.log(`desktop installer verified: ${path.basename(installer)} (Windows ${target.arch}, branded, Windows terminal module)`)
+}
+
+/** The company set must be inside the app, or the whole point of shipping it there is lost. */
+export function verifyCompanySet(resourcesDir: string, brand: Brand): void {
+  const company = path.join(resourcesDir, "company")
+  if (!existsSync(company)) throw new DesktopBuildError("verify", `no resources/company folder in ${resourcesDir}`)
+  const slug = placeholders(brand).productSlug
+  for (const rel of [`${slug}.jsonc`, "team/skills/impeccable/SKILL.md", "team/plugins/ciso-session.js"]) {
+    if (!existsSync(path.join(company, rel))) throw new DesktopBuildError("verify", `resources/company is missing ${rel}`)
+  }
 }
