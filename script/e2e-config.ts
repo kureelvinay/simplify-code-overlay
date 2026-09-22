@@ -59,7 +59,8 @@ function sandbox(): Sandbox {
       return JSON.parse(raw.slice(raw.indexOf("{")))
     },
     async run(args, cwd = project) {
-      return await $`${bin} ${args}`.cwd(cwd).env(env()).quiet().nothrow().text()
+      const r = await $`${bin} ${args}`.cwd(cwd).env(env()).quiet().nothrow()
+      return r.stdout.toString() + r.stderr.toString() // errors go to stderr
     },
   }
 }
