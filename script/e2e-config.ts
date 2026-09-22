@@ -39,6 +39,7 @@ function sandbox(): Sandbox {
     OPENCODE_TEST_HOME: root, // upstream's own hook: keeps the ~/.opencode lookup inside the sandbox
     OPENCODE_TEST_MANAGED_CONFIG_DIR: path.join(root, "no-managed"),
     OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR: path.join(root, "no-brand-managed"),
+    OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR: path.join(root, "no-team"),
     OPENCODE_DISABLE_AUTOUPDATE: "1",
     ...extra,
   })
@@ -148,6 +149,41 @@ await check("and the emptied upstream folder is not refilled with a .gitignore, 
   const upstream = path.join(s.config, "opencode")
   const refilled = [".gitignore", "package.json", "node_modules"].filter((f) => existsSync(path.join(upstream, f)))
   return expectEq("files recreated in ~/.config/opencode", refilled, [])
+})
+
+// Company control: an administrator-owned team folder and the plugin lock.
+await check("the team folder's agents, commands and config load on every machine", async (s) => {
+  const team = path.join(s.root, "managed-brand", "team")
+  s.write(path.join(team, "agents", "teamreviewer.md"), "---\ndescription: e2e team agent\nmode: subagent\n---\nYou review for the team.\n")
+  s.write(path.join(team, `${BRAND}.json`), { share: "disabled" })
+  const env = { OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR: path.join(s.root, "managed-brand"), OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR: team }
+  const c = await s.resolved(s.project, env)
+  const out = path.join(s.root, "agents.txt")
+  await $`sh -c ${`"${bin}" agent list > "${out}" 2>/dev/null`}`.cwd(s.project).env({ ...process.env, ...env, XDG_CONFIG_HOME: s.config, OPENCODE_TEST_HOME: s.root }).quiet().nothrow()
+  return expectEq("share", c.share, "disabled") ?? expectEq("team agent listed", readFileSync(out, "utf8").includes("teamreviewer"), true)
+})
+
+await check("a read-only team folder still loads (the app only warns when it cannot write there)", async (s) => {
+  const team = path.join(s.root, "managed-brand", "team")
+  s.write(path.join(team, `${BRAND}.json`), { share: "disabled" })
+  await $`chmod -R a-w ${path.join(s.root, "managed-brand")}`.quiet()
+  const c = await s.resolved(s.project, { OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR: path.join(s.root, "managed-brand"), OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR: team })
+  await $`chmod -R u+w ${path.join(s.root, "managed-brand")}`.quiet()
+  return expectEq("share", c.share, "disabled") ?? expectEq("no .gitignore forced into the team folder", existsSync(path.join(team, ".gitignore")), false)
+})
+
+await check("plugins: the managed list is merged with a developer's own, and the lock marker drops the developer's", async (s) => {
+  const managed = path.join(s.root, "managed-brand")
+  s.write(path.join(managed, `${BRAND}.json`), { plugin: ["file:///nonexistent/company-plugin.js"] })
+  s.write(path.join(s.config, BRAND, `${BRAND}.json`), { plugin: ["file:///nonexistent/personal-plugin.js"] })
+  const env = { OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR: managed, OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR: path.join(managed, "team") }
+  const open = ((await s.resolved(s.project, env)).plugin ?? []).map((p: string) => path.basename(p)).sort()
+  s.write(path.join(managed, "plugin-lock"), "")
+  const locked = ((await s.resolved(s.project, env)).plugin ?? []).map((p: string) => path.basename(p)).sort()
+  return (
+    expectEq("without lock", open, ["company-plugin.js", "personal-plugin.js"]) ??
+    expectEq("with lock", locked, ["company-plugin.js"])
+  )
 })
 
 const version = (await $`${bin} --version`.quiet().nothrow().text()).trim()

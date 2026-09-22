@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Publishes a --package bundle as a GitHub Release.
 //
-//   bun run script/publish-bundle.ts --version 1.18.31 --repo owner/name [--bundle package|desktop] [--tag <tag>] [--target <branch-or-sha>]
+//   bun run script/publish-bundle.ts --version 1.18.31 --repo owner/name [--bundle package|desktop|team] [--tag <tag>] [--target <branch-or-sha>]
 //
 // --bundle package (default) publishes dist/<v>/package as v<v>; --bundle desktop publishes dist/<v>/desktop as v<v>-desktop.
 //
@@ -13,7 +13,7 @@ import { existsSync, readdirSync, statSync } from "node:fs"
 import path from "node:path"
 import { $ } from "bun"
 import { loadBrand } from "../src/brand"
-import { contentType, missingAssets, releaseNotes, releaseTag, releaseTitle, type BundleKind, type RemoteAsset } from "../src/publish"
+import { bundleDir, contentType, missingAssets, releaseNotes, releaseTag, releaseTitle, type BundleKind, type RemoteAsset } from "../src/publish"
 
 const arg = (name: string) => {
   const i = process.argv.indexOf(`--${name}`)
@@ -23,14 +23,14 @@ const version = arg("version")
 const repo = arg("repo")
 const target = arg("target")
 const kind = (arg("bundle") ?? "package") as BundleKind
-if (!version || !repo || (kind !== "package" && kind !== "desktop")) {
-  console.error("usage: bun run script/publish-bundle.ts --version X.Y.Z --repo owner/name [--bundle package|desktop] [--tag <tag>] [--target <branch-or-sha>]")
+if (!version || !repo || !["package", "desktop", "team"].includes(kind)) {
+  console.error("usage: bun run script/publish-bundle.ts --version X.Y.Z --repo owner/name [--bundle package|desktop|team] [--tag <tag>] [--target <branch-or-sha>]")
   process.exit(1)
 }
 
-const dir = path.resolve(import.meta.dir, "..", "dist", version, kind)
+const dir = bundleDir(path.resolve(import.meta.dir, ".."), version, kind)
 if (!existsSync(path.join(dir, "SHA256SUMS"))) {
-  console.error(`no bundle at ${dir}. Build it first: bun run src/pipeline.ts --${kind === "desktop" ? "desktop-package" : "package"} --version ${version}`)
+  console.error(`no bundle at ${dir}. Build it first: bun run src/pipeline.ts --${kind === "package" ? "package" : `${kind}-package`}${kind === "team" ? "" : ` --version ${version}`}`)
   process.exit(1)
 }
 

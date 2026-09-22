@@ -76,6 +76,15 @@ export function lintManagedConfig(text: string): string[] {
   if (!isDict(config)) return ["not valid JSON/JSONC: the top level must be an object"]
   const problems: string[] = []
 
+  // Plugins: a git source must be pinned to a tag or commit, or every machine follows a moving branch.
+  if (Array.isArray(config.plugin)) {
+    for (const spec of config.plugin) {
+      if (typeof spec === "string" && /git\+|\.git(?!#)/.test(spec) && !spec.includes("#")) {
+        problems.push(`plugin ${JSON.stringify(spec)} is not pinned: add "#<tag or commit>" to the git URL`)
+      }
+    }
+  }
+
   // Providers: reachable over https, not a placeholder, not this machine, models pinned.
   const providers = isDict(config.provider) ? config.provider : {}
   const providerIds = Object.keys(providers)

@@ -43,19 +43,27 @@ export function contentType(name: string): string {
   return "text/plain; charset=utf-8"
 }
 
-/** Which bundle folder under dist/<version>/ is being published. */
-export type BundleKind = "package" | "desktop"
+/** Which bundle is being published. "team" is versioned by date, not by upstream version. */
+export type BundleKind = "package" | "desktop" | "team"
 
-/** The desktop bundle gets its own release: both bundles carry an INSTALL.md, a LICENSE and a SHA256SUMS. */
+/** Where the pipeline wrote that bundle. */
+export function bundleDir(root: string, version: string, kind: BundleKind): string {
+  return kind === "team" ? `${root}/dist/team/${version}` : `${root}/dist/${version}/${kind}`
+}
+
+/** Each bundle gets its own release: they all carry an INSTALL.md and a SHA256SUMS, which would collide. */
 export function releaseTag(version: string, kind: BundleKind): string {
+  if (kind === "team") return `team-${version}`
   return kind === "desktop" ? `v${version}-desktop` : `v${version}`
 }
 
 export function releaseTitle(brand: Brand, version: string, kind: BundleKind = "package"): string {
+  if (kind === "team") return `${brand.productName} ${brand.tagline} team configuration ${version}`
   return `${brand.productName} ${brand.tagline} ${version} (${kind === "desktop" ? "desktop app" : "terminal version"})`
 }
 
 export function releaseNotes(brand: Brand, version: string, repo: string, kind: BundleKind = "package", tag: string = releaseTag(version, kind)): string {
+  if (kind === "team") return teamNotes(brand, version, repo, tag)
   if (kind === "desktop") return desktopNotes(brand, version, repo, tag)
   const pkg = brand.npmPackage.split("/")[1] // platform packages, and so archives, are named after it
   return `The terminal version of **${brand.productName} ${brand.tagline}** ${version}, as standalone programs. Target machines need no Node and no npm.
@@ -116,5 +124,45 @@ Download **the installer for your machine plus the helper script** into one fold
 - **The app does not update itself.** Upstream's updater is switched off because it would replace ${name} with stock OpenCode. Updating means installing a newer release over the old one.
 - Verify a download against \`SHA256SUMS\`: \`shasum -a 256 -c SHA256SUMS\` (macOS) or \`Get-FileHash <file> -Algorithm SHA256\` (Windows).
 - The terminal version is a separate release. Both share one configuration file.
+`
+}
+
+function teamNotes(brand: Brand, version: string, repo: string, tag: string): string {
+  const name = brand.productName
+  return `**For administrators.** The company-controlled configuration for **${name} ${brand.tagline}**, as of ${version}: the enforced settings and the shared team folder. Install it once per machine; developers cannot change it and their home folders are never touched.
+
+## Files
+
+| File | What it is |
+|---|---|
+| \`simplify-code.jsonc\` | Enforced config: company gateway, allowed models, sharing off, self-update off, required plugins |
+| \`team.zip\` | Shared folder: agents, commands, skills and local plugins with their dependencies |
+| \`install-team.sh\`, \`install-team.ps1\` | Installers for macOS/Linux and Windows |
+| \`INSTALL.md\` | Details, including how to check a machine |
+
+## Install or update
+
+macOS and Linux, in the folder holding all four files:
+
+\`\`\`bash
+sudo sh install-team.sh
+\`\`\`
+
+Windows, in an elevated PowerShell:
+
+\`\`\`powershell
+powershell -ExecutionPolicy Bypass -File .\\install-team.ps1
+\`\`\`
+
+Add \`--plugin-lock\` (or \`-PluginLock\`) to create the \`plugin-lock\` marker: ${name} then ignores any plugin an administrator did not declare. Re-running updates everything and replaces the team folder wholesale.
+
+**This repository is private**: \`gh release download ${tag} --repo ${repo}\`.
+
+## Before the first deployment
+
+- \`simplify-code.jsonc\` still has the **placeholder** gateway address. Set the real one and run \`bun run script/check-managed.ts\` in the overlay repo until it prints \`ok, deployable\`.
+- Each developer needs their own gateway key at \`~/.config/simplifyx/gateway-key\`.
+- Machines must reach github.com and npmjs.org on first launch: the app installs the required plugins from there.
+- This works with any ${name} build from the same date onward. It is independent of the app version.
 `
 }

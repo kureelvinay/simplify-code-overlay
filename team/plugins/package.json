@@ -1,0 +1,9 @@
+{
+  "name": "ciso-opencode-plugin",
+  "private": true,
+  "description": "Dependencies for fleet/opencode-plugin -- installed into this directory's own node_modules so ciso-session.js and entra-identity.js can `import` them as local opencode plugin files (opencode itself has no dependency-management step for local file plugins).",
+  "type": "module",
+  "dependencies": {
+    "@azure/msal-node": "^6.0.0"
+  }
+}

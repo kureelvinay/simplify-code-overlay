@@ -14,6 +14,7 @@ describe("parseArgs", () => {
   test("parses desktop mode", () => {
     expect(parseArgs(["--desktop", "--version", "1.18.31"])).toEqual({ mode: "desktop", version: "1.18.31", skipWebUi: false })
     expect(parseArgs(["--desktop-package", "--version", "1.18.31"])).toEqual({ mode: "desktop-package", version: "1.18.31", skipWebUi: false })
+    expect(parseArgs(["--team-package"])).toEqual({ mode: "team-package", version: undefined, skipWebUi: false })
   })
   test("parses package mode", () => {
     expect(parseArgs(["--package", "--version", "1.18.31"]).mode).toBe("package")
