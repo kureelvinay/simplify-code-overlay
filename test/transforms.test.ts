@@ -103,8 +103,8 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and twelve entries: sixty-four file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(112)
+  test("has one hundred and thirteen entries: sixty-four file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(113)
     expect(UPSTREAM_FILES).toHaveLength(64)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
@@ -587,6 +587,10 @@ describe("desktop publisher", () => {
     applyTransforms(root, TRANSFORMS, vars, brandDir)
     const pkg = JSON.parse(read("packages/desktop/package.json"))
     expect(pkg.author.name).toBe("SimplifyX")
+    // electron-builder names the one-click per-user install folder after the PACKAGE name, not the product:
+    // %LOCALAPPDATA%\Programs\@opencode-aidesktop on the first Windows install
+    expect(pkg.name).toBe("simplify-code-desktop")
+    expect(pkg.dependencies["@opencode-ai/plugin"] ?? pkg.devDependencies["@opencode-ai/app"]).toBeDefined() // workspace deps untouched
     const cfg = read("packages/desktop/electron-builder.config.ts")
     expect(cfg).toContain('copyright: "Copyright © OpenCode contributors, MIT License. Distributed by SimplifyX.",')
   })

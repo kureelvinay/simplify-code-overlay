@@ -843,6 +843,10 @@ export const TRANSFORMS: Transform[] = [
   // programs) and the default copyright line from package.json's author. The company distributes the
   // app, so it is the publisher; the copyright stays upstream's, whose MIT-licensed code this is.
   { kind: "json", file: `${DESKTOP}/package.json`, set: { "author.name": "{{companyName}}" } },
+  // 113. The Windows per-user install folder. electron-builder names a one-click installer's folder after the
+  // PACKAGE name, sanitised (%LOCALAPPDATA%\Programs\@opencode-aidesktop), not after productName. Only the
+  // lockfile knows this name and nothing imports the package, and the build never reinstalls after transforms.
+  { kind: "json", file: `${DESKTOP}/package.json`, set: { name: "{{productSlug}}-desktop" } },
   // 107. Cross-building the desktop app. Upstream bakes the HOST's terminal module
   // (@lydell/node-pty-<platform>-<arch>) into the app, which is right on its per-OS CI runners and
   // wrong when one Mac builds the Intel-Mac and Windows apps too. Unset, behaviour is upstream's.
