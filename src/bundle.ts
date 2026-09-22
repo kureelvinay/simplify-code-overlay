@@ -103,6 +103,7 @@ install -m 755 "$tmp/opencode" "$dest/opencode"
 if [ "$os" = darwin ]; then xattr -d com.apple.quarantine "$dest/opencode" 2>/dev/null || true; fi
 
 echo "${brand.productName} ${brand.tagline} installed: $dest/opencode"
+echo "If your company enforces a gateway, put your personal key in ~/.config/simplifyx/gateway-key (chmod 600)."
 "$dest/opencode" --version
 
 case ":$PATH:" in
@@ -159,6 +160,7 @@ export function installPs1(brand: Brand, version: string): string {
     "}",
     "",
     `Write-Host "${brand.productName} ${brand.tagline} installed: $dest\\opencode.exe"`,
+    `Write-Host "If your company enforces a gateway, put your personal key in $env:USERPROFILE\\.config\\simplifyx\\gateway-key"`,
     '& (Join-Path $dest "opencode.exe") --version',
     "",
   ]
@@ -198,7 +200,7 @@ It installs for the current user into \`%LOCALAPPDATA%\\Programs\\${brand.produc
 opencode --version
 \`\`\`
 
-It should print \`${version}\`. Then run \`opencode\` inside a project folder. Configuration goes in \`~/.config/${slug}/${slug}.json\`.
+It should print \`${version}\`. Then run \`opencode\` inside a project folder. Personal configuration goes in \`~/.config/${slug}/${slug}.json\`. If your company enforces a gateway, your personal key goes in \`~/.config/simplifyx/gateway-key\` (readable only by you, \`chmod 600\`); company settings themselves are installed by IT and cannot be changed locally.
 
 ## Things to know
 

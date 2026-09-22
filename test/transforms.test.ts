@@ -103,8 +103,8 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and eleven entries: sixty-four file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(111)
+  test("has one hundred and twelve entries: sixty-four file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(112)
     expect(UPSTREAM_FILES).toHaveLength(64)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
@@ -623,6 +623,13 @@ describe("company-controlled team folder and plugin lock", () => {
     expect(lock).toBeGreaterThan(mdm) // after every source has been merged
     expect(lock).toBeLessThan(modes)
     expect(text).toContain("result.plugin = kept.map((item) => item.spec)")
+  })
+
+  test("a missing {file:} reference in an administrator's config resolves to empty instead of stopping the app", () => {
+    // a developer who has not placed their gateway key yet must still be able to start the app
+    expect(config()).toContain(
+      '{ text, type: "path", path: options.path, env, missing: ConfigManaged.isAdminSource(options.path) ? "empty" : "error" }',
+    )
   })
 
   test("isAdminSource: managed folders, the team folder and MDM count; a developer's own files do not", () => {

@@ -186,6 +186,22 @@ await check("plugins: the managed list is merged with a developer's own, and the
   )
 })
 
+await check("a gateway key file that does not exist yet does not stop the app when the reference is in the managed config", async (s) => {
+  const managed = path.join(s.root, "managed-brand")
+  s.write(path.join(managed, `${BRAND}.json`), {
+    provider: { gw: { npm: "@ai-sdk/openai-compatible", name: "gw", options: { baseURL: "https://gw.example/v1", apiKey: `{file:${s.root}/no-such-key}` }, models: { m: { name: "m" } } } },
+  })
+  const c = await s.resolved(s.project, { OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR: managed, OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR: path.join(managed, "team") })
+  return expectEq("provider loaded with an empty key", c.provider?.gw?.options?.apiKey, "")
+})
+
+// But in a developer's own file the upstream behaviour stays: a bad reference is an error they should see.
+await check("the same missing file in a developer's own config is still reported as an error", async (s) => {
+  s.write(path.join(s.config, BRAND, `${BRAND}.json`), { provider: { gw: { options: { apiKey: `{file:${s.root}/no-such-key}` } } } })
+  const out = await s.run(["debug", "config"])
+  return expectEq("error mentions the reference", out.includes("bad file reference"), true)
+})
+
 const version = (await $`${bin} --version`.quiet().nothrow().text()).trim()
 console.log(`\nconfig names, end to end, against ${bin} ${version}\n`)
 for (const r of results) console.log(`  ${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.ok ? "" : `\n        ${r.detail}`}`)

@@ -681,6 +681,17 @@ export const TRANSFORMS: Transform[] = [
     count: 1,
   },
 
+  // 112. A developer who has not placed their gateway key yet must still be able to start the app: for
+  // sources only an administrator writes, a missing {file:} reference resolves to empty (the gateway then
+  // rejects requests with a clear authentication error). In a developer's own file it stays an error.
+  {
+    kind: "edit",
+    file: "packages/opencode/src/config/config.ts",
+    find: "            ? { text, type: \"path\", path: options.path, env }\n",
+    replace: "            ? { text, type: \"path\", path: options.path, env, missing: ConfigManaged.isAdminSource(options.path) ? \"empty\" : \"error\" }\n",
+    count: 1,
+  },
+
   // ---------------------------------------------------------------------------
   // Where NEW files are created. Same principle as the config file: an existing .opencode folder keeps
   // being used (so one project is never split across two folders); everything new gets the brand name.
