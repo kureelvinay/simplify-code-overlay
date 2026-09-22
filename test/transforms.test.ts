@@ -109,8 +109,8 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and thirty-six entries: seventy-six file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(136)
+  test("has one hundred and thirty-seven entries: seventy-six file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(137)
     expect(UPSTREAM_FILES).toHaveLength(76)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
@@ -681,6 +681,7 @@ describe("no traces of the upstream name on an installed machine", () => {
   test("the command is named after the product: the binary, the help header and the user agent", () => {
     const build = read("packages/opencode/script/build.ts")
     expect(build).toContain("outfile: `dist/${name}/bin/simplify-code`,")
+    expect(build).toContain("const binaryPath = `dist/${name}/bin/simplify-code`") // upstream's own smoke test
     expect(build).toContain("`--user-agent=simplify-code/${Script.version}`")
     expect(read("packages/opencode/src/index.ts")).toContain('.scriptName("simplify-code")')
   })
