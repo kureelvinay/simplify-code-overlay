@@ -1,4 +1,4 @@
-# xcode-overlay
+# simplify-code-overlay
 
 Builds **Simplify Code by SimplifyX**: [OpenCode](https://github.com/anomalyco/opencode) with SimplifyX colors, logo, and name. No fork. This repo holds only brand assets and a pipeline that clones an upstream tag, applies twenty-two small, asserted edits, builds it with upstream's own build script, and packages it as `@simplifyx/simplify-code`.
 
@@ -53,6 +53,7 @@ bun run src/pipeline.ts --local --version 1.18.31   # build + install on this ma
 bun run src/pipeline.ts --desktop --version 1.18.31 # macOS: build + install the desktop app
 bun run src/pipeline.ts --package --version 1.18.31 # terminal version, all 12 targets -> dist/<v>/package
 bun run src/pipeline.ts --desktop-package --version 1.18.31 # desktop app, Mac + Windows -> dist/<v>/desktop
+bun run src/pipeline.ts --team-package                        # company-controlled config -> dist/team/<date>
 bun run script/publish-bundle.ts --version 1.18.31 --repo owner/name [--bundle desktop] # a bundle -> GitHub Release
 bun run src/pipeline.ts --release --version 1.18.31 # build all targets, publish, GitHub release
 ```
@@ -62,6 +63,18 @@ Add `--skip-web-ui` to `--local` for a faster build without the embedded web UI.
 `--local` replaces any stock `opencode-ai` install with the build it just produced; `npm install -g opencode-ai` restores the stock package. It prints npm's own global bin path, and warns if the `opencode` that wins on your `PATH` comes from somewhere else (a brew or curl-installer copy shadowing the branded one).
 
 `--check` lists at most the newest three unpublished upstream versions and says how many older ones it skipped, so a long backlog cannot fan out into a huge release matrix. If the registry answers anything other than "not published yet" (npm `E404`), it exits 1 rather than pretending nothing is published.
+
+### Company control (`--team-package`)
+
+Two layers the app loads above every developer's own config, both installed by an administrator into a folder developers can read but not change (`/Library/Application Support/simplify-code/`, `%ProgramData%\simplify-code\`, `/etc/simplify-code/`):
+
+- **`simplify-code.jsonc`**, the enforced config (`managed/opencode.jsonc` in this repo): gateway, allowed models, sharing off, self-update off, required plugins.
+- **`team/`** (the `team/` folder in this repo): shared agents, commands, skills and local plugin files. Our build treats it as a config folder, so its contents load on every machine. Being root-owned is fine: the app only warns when it cannot write its scaffolding there.
+- **`plugin-lock`**, an optional empty marker file. While present, only plugins declared by an administrator (managed folders, the team folder, an MDM profile) load. Without it, the managed plugin list is merged with a developer's own, so required plugins always load but developers may add more.
+
+`--team-package` writes the bundle with root-only installers; `script/publish-bundle.ts --bundle team --version <date>` publishes it. The team bundle is dated, not tied to an app version, because IT changes it on its own schedule. A missing `{file:}` reference in an administrator's config resolves to empty rather than stopping the app, so a developer without their key yet can still start it; in a developer's own config it stays an error.
+
+Developers' home folders are never touched. The one thing each developer provides is their gateway key at `~/.config/simplifyx/gateway-key`.
 
 ### Packaging the desktop app (`--desktop-package`)
 

@@ -49,6 +49,10 @@ describe("lintManagedConfig", () => {
     expect(lint((c) => (c.provider["company-gateway"].options.baseURL = "https://127.0.0.1:4000/v1"))[0]).toContain("loopback")
     expect(lint((c) => (c.provider["company-gateway"].options.baseURL = "https://localhost:4000/v1"))[0]).toContain("loopback")
   })
+  test("rejects an unpinned git plugin: a moving branch would change what every machine runs overnight", () => {
+    expect(lint((c) => (c.plugin = ["superpowers@git+https://github.com/obra/superpowers.git"]))[0]).toContain("pinned")
+    expect(lint((c) => (c.plugin = ["superpowers@git+https://github.com/obra/superpowers.git#v6.3.0", "@devtheops/opencode-plugin-otel"]))).toEqual([])
+  })
   test("rejects a literal secret, accepts {env:} and {file:} references", () => {
     expect(lint((c) => (c.provider["company-gateway"].options.apiKey = "sk-live-abcdef123456"))[0]).toContain("literal secret")
     expect(lint((c) => (c.provider["company-gateway"].options.apiKey = "{env:GATEWAY_KEY}"))).toEqual([])
@@ -90,6 +94,10 @@ describe("the shipped draft, managed/opencode.jsonc", () => {
     const problems = lintManagedConfig(text)
     expect(problems).toHaveLength(1)
     expect(problems[0]).toContain("placeholder")
+  })
+  test("declares the required plugins, so every machine loads them and nobody can remove them", () => {
+    const config = parseJsonc(text) as any
+    expect(config.plugin).toEqual(["superpowers@git+https://github.com/obra/superpowers.git#v6.3.0", "@devtheops/opencode-plugin-otel"])
   })
   test("carries the four gateway models and the current defaults", () => {
     const config = parseJsonc(text) as any

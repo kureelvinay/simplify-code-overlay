@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test"
 import { loadBrand } from "../src/brand"
-import { contentType, missingAssets, releaseNotes, releaseTag, releaseTitle } from "../src/publish"
+import { bundleDir, contentType, missingAssets, releaseNotes, releaseTag, releaseTitle } from "../src/publish"
 
 const brand = loadBrand()
 
@@ -95,5 +95,23 @@ describe("a custom tag", () => {
   test("is what the download command in the notes uses, so the notes never point at a different release", () => {
     expect(releaseNotes(brand, "1.18.31", "o/r", "package", "simplify-code-v1.18.31")).toContain("gh release download simplify-code-v1.18.31 --repo o/r")
     expect(releaseNotes(brand, "1.18.31", "o/r", "desktop", "simplify-code-desktop-v1.18.31")).toContain("gh release download simplify-code-desktop-v1.18.31 --repo o/r")
+  })
+})
+
+describe("the team bundle is its own release, versioned by date because it changes on IT's schedule, not upstream's", () => {
+  test("tag, title and folder", () => {
+    expect(releaseTag("2026-09-22", "team")).toBe("team-2026-09-22")
+    expect(releaseTitle(brand, "2026-09-22", "team")).toBe("Simplify Code by SimplifyX team configuration 2026-09-22")
+    expect(bundleDir("/r", "1.18.31", "package")).toBe("/r/dist/1.18.31/package")
+    expect(bundleDir("/r", "2026-09-22", "team")).toBe("/r/dist/team/2026-09-22")
+  })
+  test("notes say it is for administrators, what it enforces, and how to install", () => {
+    const notes = releaseNotes(brand, "2026-09-22", "o/r", "team")
+    expect(notes).toContain("sudo sh install-team.sh")
+    expect(notes).toContain("install-team.ps1")
+    expect(notes).toContain("administrator")
+    expect(notes).toContain("plugin-lock")
+    expect(notes).toContain("gh release download team-2026-09-22 --repo o/r")
+    expect(notes).toContain("placeholder")
   })
 })

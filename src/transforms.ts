@@ -559,7 +559,7 @@ export const TRANSFORMS: Transform[] = [
     kind: "edit",
     file: "packages/opencode/src/config/paths.ts",
     find: "    ...(Flag.OPENCODE_CONFIG_DIR ? [Flag.OPENCODE_CONFIG_DIR] : []),\n  ])\n})",
-    replace: "    ...(Flag.OPENCODE_CONFIG_DIR ? [Flag.OPENCODE_CONFIG_DIR] : []),\n  ]))\n})",
+    replace: "    ...(Flag.OPENCODE_CONFIG_DIR ? [Flag.OPENCODE_CONFIG_DIR] : []),\n    // {{productName}}: the company's team folder, administrator-owned, read like any other config folder\n    ...(existsSync(ConfigManaged.brandTeamConfigDir()) ? [ConfigManaged.brandTeamConfigDir()] : []),\n  ]))\n})",
     count: 1,
   },
   // 76. The global file the app writes to: the first that exists, so an existing opencode.json keeps being used; a fresh install is seeded with ~/.config/simplify-code/simplify-code.jsonc
@@ -583,7 +583,7 @@ export const TRANSFORMS: Transform[] = [
     kind: "edit",
     file: "packages/opencode/src/config/config.ts",
     find: "          if (dir.endsWith(\".opencode\") || dir === Flag.OPENCODE_CONFIG_DIR) {\n            for (const file of [\"opencode.json\", \"opencode.jsonc\"]) {",
-    replace: "          if (dir.endsWith(\".opencode\") || dir.endsWith(ConfigPaths.BRAND_DIR) || dir === Flag.OPENCODE_CONFIG_DIR) {\n            for (const file of [\"opencode.json\", \"opencode.jsonc\", `${ConfigPaths.BRAND}.json`, `${ConfigPaths.BRAND}.jsonc`]) {",
+    replace: "          if (dir.endsWith(\".opencode\") || dir.endsWith(ConfigPaths.BRAND_DIR) || dir === Flag.OPENCODE_CONFIG_DIR || dir === ConfigManaged.brandTeamConfigDir()) {\n            for (const file of [\"opencode.json\", \"opencode.jsonc\", `${ConfigPaths.BRAND}.json`, `${ConfigPaths.BRAND}.jsonc`]) {",
     count: 1,
   },
   // 79. Company-managed config: upstream's folder, then the brand's
@@ -599,7 +599,7 @@ export const TRANSFORMS: Transform[] = [
     kind: "edit",
     file: "packages/opencode/src/config/managed.ts",
     find: "export function managedConfigDir() {\n  return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()\n}\n",
-    replace: "export function managedConfigDir() {\n  return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()\n}\n\n/** {{productName}}: the brand's own managed folder beside upstream's, read after it so it wins. */\nexport function brandManagedConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR || path.join(path.dirname(systemManagedConfigDir()), \"{{productSlug}}\")\n}\n",
+    replace: "export function managedConfigDir() {\n  return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()\n}\n\n/** {{productName}}: the brand's own managed folder beside upstream's, read after it so it wins. */\nexport function brandManagedConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR || path.join(path.dirname(systemManagedConfigDir()), \"{{productSlug}}\")\n}\n\n/**\n * {{productName}}: the company's shared agents, commands, skills, plugins and config. Inside the managed folder,\n * so only an administrator can change it, yet read like any other config folder.\n */\nexport function brandTeamConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR || path.join(brandManagedConfigDir(), \"team\")\n}\n\n/** {{productName}}: a marker file an administrator creates to allow only administrator-declared plugins. */\nexport function pluginLockEnabled() {\n  return existsSync(path.join(brandManagedConfigDir(), \"plugin-lock\"))\n}\n\n/** Whether a config source is one only an administrator can write: a managed folder, the team folder or an MDM profile. */\nexport function isAdminSource(source: string) {\n  if (source.startsWith(\"mobileconfig:\")) return true\n  const within = (dir: string) => source === dir || source.startsWith(dir.endsWith(path.sep) ? dir : dir + path.sep)\n  return [managedConfigDir(), brandManagedConfigDir(), brandTeamConfigDir()].some(within)\n}\n",
     count: 1,
   },
   {
@@ -614,14 +614,14 @@ export const TRANSFORMS: Transform[] = [
     kind: "edit",
     file: "packages/opencode/src/config/tui.ts",
     find: "const dirs = unique(directories).filter((dir) => dir.endsWith(\".opencode\") || dir === Flag.OPENCODE_CONFIG_DIR)",
-    replace: "const dirs = unique(directories).filter(\n    (dir) => dir.endsWith(\".opencode\") || dir.endsWith(ConfigPaths.BRAND_DIR) || dir === Flag.OPENCODE_CONFIG_DIR,\n  )",
+    replace: "const dirs = unique(directories).filter(\n    (dir) =>\n      dir.endsWith(\".opencode\") || dir.endsWith(ConfigPaths.BRAND_DIR) || dir === Flag.OPENCODE_CONFIG_DIR || dir === ConfigManaged.brandTeamConfigDir(),\n  )",
     count: 1,
   },
   {
     kind: "edit",
     file: "packages/opencode/src/config/tui.ts",
     find: "if (!dir.endsWith(\".opencode\") && dir !== Flag.OPENCODE_CONFIG_DIR) continue",
-    replace: "if (!dir.endsWith(\".opencode\") && !dir.endsWith(ConfigPaths.BRAND_DIR) && dir !== Flag.OPENCODE_CONFIG_DIR) continue",
+    replace: "if (!dir.endsWith(\".opencode\") && !dir.endsWith(ConfigPaths.BRAND_DIR) && dir !== Flag.OPENCODE_CONFIG_DIR && dir !== ConfigManaged.brandTeamConfigDir()) continue",
     count: 1,
   },
   {
@@ -652,6 +652,43 @@ export const TRANSFORMS: Transform[] = [
     file: "packages/core/src/config.ts",
     find: "const names = [\"opencode.json\", \"opencode.jsonc\"]",
     replace: "const names = [\"opencode.json\", \"opencode.jsonc\", \"{{productSlug}}.json\", \"{{productSlug}}.jsonc\"]",
+    count: 1,
+  },
+
+  // 109-111. Company control. paths.ts and tui.ts learn about the team folder; config.ts applies the
+  // plugin lock once every source has been merged (the MDM profile is the last), so a developer's own
+  // config can add plugins only while no administrator has created the marker.
+  {
+    kind: "edit",
+    file: "packages/opencode/src/config/paths.ts",
+    find: "import { Global } from \"@opencode-ai/core/global\"\n",
+    replace: "import { Global } from \"@opencode-ai/core/global\"\nimport { ConfigManaged } from \"./managed\"\n",
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/opencode/src/config/tui.ts",
+    find: "import * as ConfigPaths from \"@/config/paths\"\n",
+    replace: "import * as ConfigPaths from \"@/config/paths\"\nimport { ConfigManaged } from \"@/config/managed\"\n",
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/opencode/src/config/config.ts",
+    find: "        for (const [name, mode] of Object.entries(result.mode ?? {})) {\n          result.agent = mergeDeep(result.agent ?? {}, {\n",
+    replace:
+      "        // {{productName}}: with the plugin-lock marker in the managed folder, only administrator-declared plugins load.\n        if (ConfigManaged.pluginLockEnabled() && result.plugin_origins) {\n          const kept = result.plugin_origins.filter((item) => ConfigManaged.isAdminSource(item.source))\n          const dropped = result.plugin_origins.filter((item) => !kept.includes(item)).map((item) => item.spec)\n          if (dropped.length) yield* Effect.logWarning(\"plugin lock: ignoring plugins not declared by an administrator\", { dropped })\n          result.plugin_origins = kept\n          result.plugin = kept.map((item) => item.spec)\n        }\n\n        for (const [name, mode] of Object.entries(result.mode ?? {})) {\n          result.agent = mergeDeep(result.agent ?? {}, {\n",
+    count: 1,
+  },
+
+  // 112. A developer who has not placed their gateway key yet must still be able to start the app: for
+  // sources only an administrator writes, a missing {file:} reference resolves to empty (the gateway then
+  // rejects requests with a clear authentication error). In a developer's own file it stays an error.
+  {
+    kind: "edit",
+    file: "packages/opencode/src/config/config.ts",
+    find: "            ? { text, type: \"path\", path: options.path, env }\n",
+    replace: "            ? { text, type: \"path\", path: options.path, env, missing: ConfigManaged.isAdminSource(options.path) ? \"empty\" : \"error\" }\n",
     count: 1,
   },
 

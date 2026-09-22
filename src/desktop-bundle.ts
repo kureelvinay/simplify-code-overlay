@@ -94,6 +94,7 @@ ditto "$TMP/${name}.app" "$DEST"
 xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
 
 echo "${name} ${version} installed: $DEST"
+echo "If your company enforces a gateway, put your personal key in ~/.config/simplifyx/gateway-key (chmod 600)."
 echo "open it from Launchpad or Spotlight, or run: open \\"$DEST\\""
 `
 }
@@ -119,6 +120,7 @@ export function installWindowsPs1(brand: Brand, version: string): string {
     "$p = Start-Process -FilePath $path -Wait -PassThru",
     "if ($p.ExitCode -ne 0) { throw \"the installer exited with code $($p.ExitCode)\" }",
     `Write-Host "${name} ${version} installed. Open it from the Start menu."`,
+    `Write-Host "If your company enforces a gateway, put your personal key in $env:USERPROFILE\\.config\\simplifyx\\gateway-key"`,
   ]
   return lines.join("\r\n") + "\r\n"
 }

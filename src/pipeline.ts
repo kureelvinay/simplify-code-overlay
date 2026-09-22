@@ -11,6 +11,7 @@ import { buildMacApp } from "./launcher"
 import { archiveBinaries, writeBundle } from "./bundle"
 import { buildDesktop, buildDesktopTargets, DESKTOP_TARGETS, DesktopBuildError, installDesktop, verifyDesktop, verifyWindowsDesktop } from "./desktop"
 import { writeDesktopBundle } from "./desktop-bundle"
+import { writeTeamBundle } from "./team-bundle"
 
 export const EXIT = { input: 1, drift: 2, toolchain: 3, build: 4, smoke: 5, publish: 6 } as const
 
@@ -30,15 +31,15 @@ export class PipelineError extends Error {
 }
 
 export interface Args {
-  mode: "local" | "release" | "check" | "launcher" | "desktop" | "desktop-package" | "package"
+  mode: "local" | "release" | "check" | "launcher" | "desktop" | "desktop-package" | "package" | "team-package"
   version?: string
   skipWebUi: boolean
 }
 
-const USAGE = "usage: bun run src/pipeline.ts --local|--package|--desktop-package|--release|--check|--desktop|--launcher [--version X.Y.Z] [--skip-web-ui]"
+const USAGE = "usage: bun run src/pipeline.ts --local|--package|--desktop-package|--team-package|--release|--check|--desktop|--launcher [--version X.Y.Z] [--skip-web-ui]"
 
 export function parseArgs(argv: string[]): Args {
-  const mode = (["--local", "--package", "--desktop-package", "--release", "--check", "--desktop", "--launcher"] as const).find((m) => argv.includes(m))
+  const mode = (["--local", "--package", "--desktop-package", "--team-package", "--release", "--check", "--desktop", "--launcher"] as const).find((m) => argv.includes(m))
   if (!mode) throw new PipelineError(USAGE, EXIT.input)
   const i = argv.indexOf("--version")
   let version: string | undefined
@@ -79,7 +80,7 @@ export function newerVersions(upstream: string[], current: string | undefined): 
 
 async function latestUpstreamVersion(brand: Brand): Promise<string> {
   const res = await fetch(`https://api.github.com/repos/${brand.upstreamRepo}/releases/latest`, {
-    headers: { "user-agent": "xcode-overlay" },
+    headers: { "user-agent": "simplify-code-overlay" },
   })
   if (!res.ok) throw new PipelineError(`GitHub API returned ${res.status} for ${brand.upstreamRepo}`, EXIT.input)
   const data = (await res.json()) as { tag_name: string }
@@ -234,7 +235,7 @@ async function registryLatest(brand: Brand): Promise<string | undefined> {
 
 async function upstreamReleaseVersions(brand: Brand): Promise<string[]> {
   const res = await fetch(`https://api.github.com/repos/${brand.upstreamRepo}/releases?per_page=30`, {
-    headers: { "user-agent": "xcode-overlay" },
+    headers: { "user-agent": "simplify-code-overlay" },
   })
   if (!res.ok) throw new PipelineError(`GitHub API returned ${res.status} for ${brand.upstreamRepo}`, EXIT.input)
   const data = (await res.json()) as { tag_name: string; draft: boolean; prerelease: boolean }[]
@@ -402,10 +403,20 @@ export async function packageBundle(brand: Brand, version: string): Promise<void
   console.log(`\n${brand.productName} ${version} packaged: ${out}\n  hand this folder to a machine and follow INSTALL.md`)
 }
 
+/** The company-controlled configuration bundle. No build: it is independent of the app version, so it is dated. */
+export async function teamPackage(brand: Brand): Promise<void> {
+  const date = new Date().toISOString().slice(0, 10)
+  const out = path.join(DIST, "team", date)
+  console.log(`== team bundle ${date} ==`)
+  for (const f of await writeTeamBundle(out, brand, date)) console.log(`  ${path.relative(ROOT, f)}`)
+  console.log(`\n${brand.productName} team configuration ${date} packaged: ${out}\n  an administrator installs it with: sudo sh install-team.sh`)
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2))
   const brand = loadBrand()
   if (args.mode === "check") return check(brand)
+  if (args.mode === "team-package") return teamPackage(brand)
   if (args.mode === "launcher") return void (await installLauncher(brand, args.version ?? (await installedVersion())))
   const version = args.version ?? (await latestUpstreamVersion(brand))
   if (args.mode === "local") return local(brand, version, args.skipWebUi)
