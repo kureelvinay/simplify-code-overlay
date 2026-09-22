@@ -692,10 +692,11 @@ export const TRANSFORMS: Transform[] = [
     count: 1,
   },
 
-  // 114-135. No traces of the upstream name on an installed machine: folders, command, help header,
+  // 114-136. No traces of the upstream name on an installed machine: folders, command, help header,
   // user agent, messages that name the command, deep-link scheme, update feed file. Third-party service
   // names (OpenCode Zen, OpenCode Go) and the MIT licence are the deliberate exceptions.
   { kind: "edit", file: "packages/core/src/global.ts", find: 'const app = "opencode"', replace: 'const app = "{{productSlug}}"', count: 1 },
+  { kind: "edit", file: "packages/core/src/database/database.ts", find: 'join(Global.Path.data, "opencode.db")', replace: 'join(Global.Path.data, "{{productSlug}}.db")', count: 1 },
   { kind: "edit", file: "packages/opencode/script/build.ts", find: "outfile: `dist/${name}/bin/opencode`,", replace: "outfile: `dist/${name}/bin/{{productSlug}}`,", count: 1 },
   { kind: "edit", file: "packages/opencode/script/build.ts", find: "`--user-agent=opencode/${Script.version}`", replace: "`--user-agent={{productSlug}}/${Script.version}`", count: 1 },
   { kind: "edit", file: "packages/opencode/src/index.ts", find: '.scriptName("opencode")', replace: '.scriptName("{{productSlug}}")', count: 1 },
