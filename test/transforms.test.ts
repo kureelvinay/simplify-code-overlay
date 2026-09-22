@@ -109,9 +109,9 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and fifty-two entries: eighty-three file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(152)
-    expect(UPSTREAM_FILES).toHaveLength(83)
+  test("has one hundred and fifty-three entries: eighty-four file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(153)
+    expect(UPSTREAM_FILES).toHaveLength(84)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
       "packages/desktop/src/renderer/i18n/*.ts",
@@ -676,6 +676,7 @@ describe("no traces of the upstream name on an installed machine", () => {
   test("data, cache, config and state folders, and the database file, are named after the product", () => {
     expect(read("packages/core/src/global.ts")).toContain('const app = "simplify-code"')
     expect(read("packages/core/src/database/database.ts")).toContain('join(Global.Path.data, "simplify-code.db")')
+    expect(read("packages/core/src/observability/logging.ts")).toContain('path.join(Global.Path.log, "simplify-code.log")')
   })
 
   test("the command is named after the product: the binary, the help header and the user agent", () => {
