@@ -1,4 +1,4 @@
-import { copyFileSync, cpSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
@@ -14,6 +14,8 @@ import { sha256Sums } from "./bundle"
 
 export const TEAM_DIR = fileURLToPath(new URL("../team/", import.meta.url))
 const MANAGED_SOURCE = fileURLToPath(new URL("../managed/simplify-code.jsonc", import.meta.url))
+/** An empty marker file in the repo. While it exists, the shipped company set carries the plugin lock. */
+export const PLUGIN_LOCK_SOURCE = fileURLToPath(new URL("../managed/plugin-lock", import.meta.url))
 
 const slug = (brand: Brand) => placeholders(brand).productSlug
 const envVar = (brand: Brand) => `${slug(brand).toUpperCase().replace(/[^A-Z0-9]/g, "_")}_TEAM_ROOT`
@@ -158,18 +160,35 @@ Jamf, Intune, Kandji or FleetDM can push this folder instead of the scripts. The
 `
 }
 
-/** The team folder with its plugins' dependencies installed, zipped as team/... */
+/** The team folder with its plugins' dependencies installed, at `dest` (replaced wholesale). */
+async function stageTeam(dest: string, installPlugins: boolean): Promise<void> {
+  rmSync(dest, { recursive: true, force: true })
+  cpSync(TEAM_DIR, dest, { recursive: true, filter: (src) => !path.basename(src).startsWith(".DS_Store") })
+  if (installPlugins) {
+    // the app installs npm plugins itself, but not the dependencies of local plugin FILES; and target
+    // machines have no npm, so they are installed here and shipped
+    const r = await $`npm ci --omit=dev --ignore-scripts --no-audit --no-fund`.cwd(path.join(dest, "plugins")).quiet().nothrow()
+    if (r.exitCode !== 0) throw new Error(`npm ci in team/plugins failed (exit ${r.exitCode}): ${r.stderr.toString().slice(0, 500)}`)
+  }
+}
+
+/**
+ * The company set as the desktop app ships it inside itself (resources/company): the enforced config,
+ * the team folder and, while the repo carries the marker, the plugin lock. Replaced wholesale.
+ */
+export async function stageCompanySet(dest: string, brand: Brand, opts: { installPlugins?: boolean } = {}): Promise<void> {
+  rmSync(dest, { recursive: true, force: true })
+  mkdirSync(dest, { recursive: true })
+  copyFileSync(MANAGED_SOURCE, path.join(dest, `${slug(brand)}.jsonc`))
+  await stageTeam(path.join(dest, "team"), opts.installPlugins ?? true)
+  if (existsSync(PLUGIN_LOCK_SOURCE)) writeFileSync(path.join(dest, "plugin-lock"), "")
+}
+
+/** The team folder zipped as team/... for the administrator's bundle. */
 async function zipTeam(out: string, installPlugins: boolean): Promise<void> {
   const staging = mkdtempSync(path.join(tmpdir(), "team-zip-"))
   try {
-    const team = path.join(staging, "team")
-    cpSync(TEAM_DIR, team, { recursive: true, filter: (src) => !path.basename(src).startsWith(".DS_Store") })
-    if (installPlugins) {
-      // the app installs npm plugins itself, but not the dependencies of local plugin FILES; and target
-      // machines have no npm, so they are installed here and shipped
-      const r = await $`npm ci --omit=dev --ignore-scripts --no-audit --no-fund`.cwd(path.join(team, "plugins")).quiet().nothrow()
-      if (r.exitCode !== 0) throw new Error(`npm ci in team/plugins failed (exit ${r.exitCode}): ${r.stderr.toString().slice(0, 500)}`)
-    }
+    await stageTeam(path.join(staging, "team"), installPlugins)
     rmSync(out, { force: true })
     const z = await $`zip -qr -X ${out} team -x '*/.DS_Store'`.cwd(staging).quiet().nothrow()
     if (z.exitCode !== 0) throw new Error(`zip exit ${z.exitCode}`)

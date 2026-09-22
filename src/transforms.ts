@@ -559,7 +559,7 @@ export const TRANSFORMS: Transform[] = [
     kind: "edit",
     file: "packages/opencode/src/config/paths.ts",
     find: "    ...(Flag.OPENCODE_CONFIG_DIR ? [Flag.OPENCODE_CONFIG_DIR] : []),\n  ])\n})",
-    replace: "    ...(Flag.OPENCODE_CONFIG_DIR ? [Flag.OPENCODE_CONFIG_DIR] : []),\n    // {{productName}}: the company's team folder, administrator-owned, read like any other config folder\n    ...(existsSync(ConfigManaged.brandTeamConfigDir()) ? [ConfigManaged.brandTeamConfigDir()] : []),\n  ]))\n})",
+    replace: "    ...(Flag.OPENCODE_CONFIG_DIR ? [Flag.OPENCODE_CONFIG_DIR] : []),\n    // {{productName}}: the company's team folders (shipped in the app, and the administrator's), read like any other config folder\n    ...ConfigManaged.teamConfigDirs(),\n  ]))\n})",
     count: 1,
   },
   // 76. The global file the app writes to: the first that exists, so an existing opencode.json keeps being used; a fresh install is seeded with ~/.config/simplify-code/simplify-code.jsonc
@@ -583,7 +583,7 @@ export const TRANSFORMS: Transform[] = [
     kind: "edit",
     file: "packages/opencode/src/config/config.ts",
     find: "          if (dir.endsWith(\".opencode\") || dir === Flag.OPENCODE_CONFIG_DIR) {\n            for (const file of [\"opencode.json\", \"opencode.jsonc\"]) {",
-    replace: "          if (dir.endsWith(\".opencode\") || dir.endsWith(ConfigPaths.BRAND_DIR) || dir === Flag.OPENCODE_CONFIG_DIR || dir === ConfigManaged.brandTeamConfigDir()) {\n            for (const file of [\"opencode.json\", \"opencode.jsonc\", `${ConfigPaths.BRAND}.json`, `${ConfigPaths.BRAND}.jsonc`]) {",
+    replace: "          if (dir.endsWith(\".opencode\") || dir.endsWith(ConfigPaths.BRAND_DIR) || dir === Flag.OPENCODE_CONFIG_DIR || ConfigManaged.isTeamConfigDir(dir)) {\n            for (const file of [\"opencode.json\", \"opencode.jsonc\", `${ConfigPaths.BRAND}.json`, `${ConfigPaths.BRAND}.jsonc`]) {",
     count: 1,
   },
   // 79. Company-managed config: upstream's folder, then the brand's
@@ -591,7 +591,7 @@ export const TRANSFORMS: Transform[] = [
     kind: "edit",
     file: "packages/opencode/src/config/config.ts",
     find: "        const managedDir = ConfigManaged.managedConfigDir()\n        if (existsSync(managedDir)) {\n          for (const file of [\"opencode.json\", \"opencode.jsonc\"]) {\n            const source = path.join(managedDir, file)\n            yield* merge(source, yield* loadFile(source), \"global\")\n          }\n        }\n",
-    replace: "        for (const managedDir of [ConfigManaged.managedConfigDir(), ConfigManaged.brandManagedConfigDir()]) {\n          if (!existsSync(managedDir)) continue\n          for (const file of [\"opencode.json\", \"opencode.jsonc\", `${ConfigPaths.BRAND}.json`, `${ConfigPaths.BRAND}.jsonc`]) {\n            const source = path.join(managedDir, file)\n            yield* merge(source, yield* loadFile(source), \"global\")\n          }\n        }\n",
+    replace: "        for (const managedDir of ConfigManaged.managedConfigDirs()) {\n          for (const file of [\"opencode.json\", \"opencode.jsonc\", `${ConfigPaths.BRAND}.json`, `${ConfigPaths.BRAND}.jsonc`]) {\n            const source = path.join(managedDir, file)\n            yield* merge(source, yield* loadFile(source), \"global\")\n          }\n        }\n",
     count: 1,
   },
   // 80-81. Managed folder /Library/Application Support/simplify-code (and the Windows and Linux equivalents), and the brand MDM preference domain, checked before upstream's
@@ -599,7 +599,7 @@ export const TRANSFORMS: Transform[] = [
     kind: "edit",
     file: "packages/opencode/src/config/managed.ts",
     find: "export function managedConfigDir() {\n  return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()\n}\n",
-    replace: "export function managedConfigDir() {\n  return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()\n}\n\n/** {{productName}}: the brand's own managed folder beside upstream's, read after it so it wins. */\nexport function brandManagedConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR || path.join(path.dirname(systemManagedConfigDir()), \"{{productSlug}}\")\n}\n\n/**\n * {{productName}}: the company's shared agents, commands, skills, plugins and config. Inside the managed folder,\n * so only an administrator can change it, yet read like any other config folder.\n */\nexport function brandTeamConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR || path.join(brandManagedConfigDir(), \"team\")\n}\n\n/** {{productName}}: a marker file an administrator creates to allow only administrator-declared plugins. */\nexport function pluginLockEnabled() {\n  return existsSync(path.join(brandManagedConfigDir(), \"plugin-lock\"))\n}\n\n/** Whether a config source is one only an administrator can write: a managed folder, the team folder or an MDM profile. */\nexport function isAdminSource(source: string) {\n  if (source.startsWith(\"mobileconfig:\")) return true\n  const within = (dir: string) => source === dir || source.startsWith(dir.endsWith(path.sep) ? dir : dir + path.sep)\n  return [managedConfigDir(), brandManagedConfigDir(), brandTeamConfigDir()].some(within)\n}\n",
+    replace: "export function managedConfigDir() {\n  return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()\n}\n\n/** {{productName}}: the brand's own managed folder beside upstream's, read after it so it wins. */\nexport function brandManagedConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR || path.join(path.dirname(systemManagedConfigDir()), \"{{productSlug}}\")\n}\n\n/**\n * {{productName}}: the company set shipped INSIDE the desktop app (resources/company: the enforced config, the team\n * folder, an optional plugin-lock marker). The desktop main process points the server at it. Read as the\n * baseline, below the administrator folder, so one install gives every developer the same set and IT can\n * still override without a rebuild.\n */\nexport function bundledCompanyDir() {\n  return process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR || undefined\n}\n\n/** The folders whose config files are enforced, in merge order (later wins). */\nexport function managedConfigDirs() {\n  return [managedConfigDir(), bundledCompanyDir(), brandManagedConfigDir()].filter((dir): dir is string => !!dir && existsSync(dir))\n}\n\n/** The company folders an administrator or the build controls: bundled set, then the administrator folder. */\nfunction companyDirs() {\n  return [bundledCompanyDir(), brandManagedConfigDir()].filter((dir): dir is string => !!dir)\n}\n\n/**\n * {{productName}}: the company's shared agents, commands, skills, plugins and config. Inside the administrator\n * folder, so only an administrator can change it, yet read like any other config folder.\n */\nexport function brandTeamConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR || path.join(brandManagedConfigDir(), \"team\")\n}\n\n/** Every team folder to read, bundled first so the administrator's wins on conflicts; only those that exist. */\nexport function teamConfigDirs() {\n  const bundled = bundledCompanyDir()\n  return [...(bundled ? [path.join(bundled, \"team\")] : []), brandTeamConfigDir()].filter((dir) => existsSync(dir))\n}\n\nexport function isTeamConfigDir(dir: string) {\n  const bundled = bundledCompanyDir()\n  return dir === brandTeamConfigDir() || (!!bundled && dir === path.join(bundled, \"team\"))\n}\n\n/** {{productName}}: a marker file (in the bundled set or the administrator folder) that allows only administrator-declared plugins. */\nexport function pluginLockEnabled() {\n  return companyDirs().some((dir) => existsSync(path.join(dir, \"plugin-lock\")))\n}\n\n/** Whether a config source is one only the build or an administrator writes: a managed folder, a company folder or an MDM profile. */\nexport function isAdminSource(source: string) {\n  if (source.startsWith(\"mobileconfig:\")) return true\n  const within = (dir: string) => source === dir || source.startsWith(dir.endsWith(path.sep) ? dir : dir + path.sep)\n  return [managedConfigDir(), ...companyDirs()].some(within)\n}\n",
     count: 1,
   },
   {
@@ -614,14 +614,14 @@ export const TRANSFORMS: Transform[] = [
     kind: "edit",
     file: "packages/opencode/src/config/tui.ts",
     find: "const dirs = unique(directories).filter((dir) => dir.endsWith(\".opencode\") || dir === Flag.OPENCODE_CONFIG_DIR)",
-    replace: "const dirs = unique(directories).filter(\n    (dir) =>\n      dir.endsWith(\".opencode\") || dir.endsWith(ConfigPaths.BRAND_DIR) || dir === Flag.OPENCODE_CONFIG_DIR || dir === ConfigManaged.brandTeamConfigDir(),\n  )",
+    replace: "const dirs = unique(directories).filter(\n    (dir) =>\n      dir.endsWith(\".opencode\") || dir.endsWith(ConfigPaths.BRAND_DIR) || dir === Flag.OPENCODE_CONFIG_DIR || ConfigManaged.isTeamConfigDir(dir),\n  )",
     count: 1,
   },
   {
     kind: "edit",
     file: "packages/opencode/src/config/tui.ts",
     find: "if (!dir.endsWith(\".opencode\") && dir !== Flag.OPENCODE_CONFIG_DIR) continue",
-    replace: "if (!dir.endsWith(\".opencode\") && !dir.endsWith(ConfigPaths.BRAND_DIR) && dir !== Flag.OPENCODE_CONFIG_DIR && dir !== ConfigManaged.brandTeamConfigDir()) continue",
+    replace: "if (!dir.endsWith(\".opencode\") && !dir.endsWith(ConfigPaths.BRAND_DIR) && dir !== Flag.OPENCODE_CONFIG_DIR && !ConfigManaged.isTeamConfigDir(dir)) continue",
     count: 1,
   },
   {
@@ -741,6 +741,23 @@ export const TRANSFORMS: Transform[] = [
     file: `${DESKTOP}/electron-builder.config.ts`,
     find: '        publish: { provider: "github", owner: "anomalyco", repo: "opencode", channel: "latest" },\n',
     replace: "",
+    count: 1,
+  },
+
+  // 154-155. The company set shipped inside the desktop app: packages/desktop/company/ (copied in by the
+  // build) becomes resources/company, and the desktop main process tells its server where it is.
+  {
+    kind: "edit",
+    file: `${DESKTOP}/src/main/index.ts`,
+    find: '  process.env.OPENCODE_DISABLE_EMBEDDED_WEB_UI = "true"\n',
+    replace: '  process.env.OPENCODE_DISABLE_EMBEDDED_WEB_UI = "true"\n  // {{productName}}: the company set (enforced config, team folder) travels inside the app; the server reads it as the baseline\n  if (app.isPackaged) process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR = join(process.resourcesPath, "company")\n',
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: `${DESKTOP}/electron-builder.config.ts`,
+    find: '    {\n      from: "native/",\n      to: "native/",\n',
+    replace: '    { from: "company/", to: "company/" },\n    {\n      from: "native/",\n      to: "native/",\n',
     count: 1,
   },
 

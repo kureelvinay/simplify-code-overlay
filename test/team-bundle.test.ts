@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test"
-import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs"
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs"
 import { tmpdir } from "node:os"
 import path from "node:path"
 import { $ } from "bun"
 import { loadBrand } from "../src/brand"
-import { installTeamPs1, installTeamSh, teamInstallGuide, TEAM_DIR, writeTeamBundle } from "../src/team-bundle"
+import { installTeamPs1, installTeamSh, PLUGIN_LOCK_SOURCE, stageCompanySet, teamInstallGuide, TEAM_DIR, writeTeamBundle } from "../src/team-bundle"
 
 const brand = loadBrand()
 
@@ -18,6 +18,16 @@ describe("the team folder in the repo", () => {
     // the local plugins need their own dependencies, and the app does not install those
     expect(existsSync(path.join(TEAM_DIR, "plugins", "package.json"))).toBe(true)
     expect(existsSync(path.join(TEAM_DIR, "plugins", "package-lock.json"))).toBe(true)
+  })
+
+  test("carries impeccable's OpenCode build, vendored with its licence and source tag", () => {
+    const skill = path.join(TEAM_DIR, "skills", "impeccable")
+    for (const f of ["SKILL.md", "LICENSE", "NOTICE.md", "VENDORED.md"]) expect(existsSync(path.join(skill, f))).toBe(true)
+    expect(readFileSync(path.join(skill, "SKILL.md"), "utf8")).toMatch(/^name: impeccable$/m)
+    expect(readFileSync(path.join(skill, "VENDORED.md"), "utf8")).toMatch(/at tag skill-v\d+\.\d+\.\d+/)
+    expect(existsSync(path.join(TEAM_DIR, "commands", "impeccable.md"))).toBe(true)
+    // its four agents are Claude Code specific and impeccable's own OpenCode build leaves them out
+    expect(existsSync(path.join(TEAM_DIR, "agents", "impeccable-finish-reviewer.md"))).toBe(false)
   })
 
   test("carries no literal secret", () => {
@@ -116,5 +126,28 @@ describe("writeTeamBundle", () => {
     expect(listing).toContain("team/plugins/package.json")
     expect(listing).not.toContain(".DS_Store")
     rmSync(out, { recursive: true, force: true })
+  })
+})
+
+describe("stageCompanySet: what the desktop app ships inside itself", () => {
+  test("writes the enforced config, the team folder and the plugin-lock marker into one folder", async () => {
+    const out = path.join(mkdtempSync(path.join(tmpdir(), "company-")), "company")
+    await stageCompanySet(out, brand, { installPlugins: false })
+    expect(existsSync(path.join(out, "simplify-code.jsonc"))).toBe(true)
+    expect(existsSync(path.join(out, "team", "skills", "impeccable", "SKILL.md"))).toBe(true)
+    expect(existsSync(path.join(out, "team", "plugins", "ciso-session.js"))).toBe(true)
+    // the lock ships whenever the repo carries the marker; the user chose the lock for the pilot
+    expect(existsSync(PLUGIN_LOCK_SOURCE)).toBe(true)
+    expect(existsSync(path.join(out, "plugin-lock"))).toBe(true)
+    expect(existsSync(path.join(out, "team", ".DS_Store"))).toBe(false)
+    rmSync(path.dirname(out), { recursive: true, force: true })
+  })
+  test("replaces a previous staging wholesale", async () => {
+    const out = path.join(mkdtempSync(path.join(tmpdir(), "company-")), "company")
+    mkdirSync(path.join(out, "team", "skills", "stale"), { recursive: true })
+    writeFileSync(path.join(out, "team", "skills", "stale", "SKILL.md"), "x")
+    await stageCompanySet(out, brand, { installPlugins: false })
+    expect(existsSync(path.join(out, "team", "skills", "stale"))).toBe(false)
+    rmSync(path.dirname(out), { recursive: true, force: true })
   })
 })

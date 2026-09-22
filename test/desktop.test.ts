@@ -1,4 +1,7 @@
 import { describe, expect, test } from "bun:test"
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs"
+import { tmpdir } from "node:os"
+import path from "node:path"
 import { loadBrand } from "../src/brand"
 import { builtAppPath, builtInstallerPath, DESKTOP_TARGETS, desktopBuildEnv, electronBuilderArgs, peMachine } from "../src/desktop"
 
@@ -75,5 +78,21 @@ describe("peMachine", () => {
   test("rejects anything that is not a Windows program", () => {
     expect(peMachine(Buffer.from("#!/bin/sh\necho hi\n"))).toBeUndefined()
     expect(peMachine(Buffer.alloc(0))).toBeUndefined()
+  })
+})
+
+describe("the company set inside the desktop app", () => {
+  test("is verified in the built app: the enforced config and the team folder must be in resources/company", async () => {
+    const { verifyCompanySet } = await import("../src/desktop")
+    const resources = mkdtempSync(path.join(tmpdir(), "resources-"))
+    expect(() => verifyCompanySet(resources, brand)).toThrow("resources/company")
+    mkdirSync(path.join(resources, "company", "team", "skills", "impeccable"), { recursive: true })
+    writeFileSync(path.join(resources, "company", "simplify-code.jsonc"), "{}")
+    expect(() => verifyCompanySet(resources, brand)).toThrow("SKILL.md")
+    writeFileSync(path.join(resources, "company", "team", "skills", "impeccable", "SKILL.md"), "---\nname: impeccable\n---\n")
+    mkdirSync(path.join(resources, "company", "team", "plugins"), { recursive: true })
+    writeFileSync(path.join(resources, "company", "team", "plugins", "ciso-session.js"), "")
+    expect(() => verifyCompanySet(resources, brand)).not.toThrow()
+    rmSync(resources, { recursive: true, force: true })
   })
 })

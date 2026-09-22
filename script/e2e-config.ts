@@ -207,6 +207,30 @@ await check("the same missing file in a developer's own config is still reported
   return expectEq("error mentions the reference", out.includes("bad file reference"), true)
 })
 
+// The company set shipped inside the desktop app (the desktop main process sets this variable; the CLI honours it too).
+await check("the bundled company set alone: enforced config, team agent and plugin lock all take effect", async (s) => {
+  const bundled = path.join(s.root, "app-resources", "company")
+  s.write(path.join(bundled, `${BRAND}.json`), { share: "disabled", plugin: ["file:///nonexistent/company-plugin.js"] })
+  s.write(path.join(bundled, "team", "agents", "bundledreviewer.md"), "---\ndescription: e2e bundled agent\nmode: subagent\n---\nYou review.\n")
+  s.write(path.join(bundled, "plugin-lock"), "")
+  s.write(path.join(s.config, BRAND, `${BRAND}.json`), { plugin: ["file:///nonexistent/personal-plugin.js"] })
+  const c = await s.resolved(s.project, { SIMPLIFY_CODE_BUNDLED_COMPANY_DIR: bundled })
+  return (
+    expectEq("share", c.share, "disabled") ??
+    expectEq("bundled agent", "bundledreviewer" in (c.agent ?? {}), true) ??
+    expectEq("plugins (lock from the bundled set)", (c.plugin ?? []).map((p: string) => path.basename(p)), ["company-plugin.js"])
+  )
+})
+
+await check("the administrator folder overrides the bundled set, for hot-fixes without a rebuild", async (s) => {
+  const bundled = path.join(s.root, "app-resources", "company")
+  const admin = path.join(s.root, "managed-brand")
+  s.write(path.join(bundled, `${BRAND}.json`), { model: "bundled/model", small_model: "bundled/small" })
+  s.write(path.join(admin, `${BRAND}.json`), { model: "admin/model" })
+  const c = await s.resolved(s.project, { SIMPLIFY_CODE_BUNDLED_COMPANY_DIR: bundled, OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR: admin, OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR: path.join(admin, "team") })
+  return expectEq("model", c.model, "admin/model") ?? expectEq("small_model kept from bundled", c.small_model, "bundled/small")
+})
+
 const version = (await $`${bin} --version`.quiet().nothrow().text()).trim()
 console.log(`\nconfig names, end to end, against ${bin} ${version}\n`)
 for (const r of results) console.log(`  ${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.ok ? "" : `\n        ${r.detail}`}`)

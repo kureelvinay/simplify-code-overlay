@@ -109,8 +109,8 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and fifty-three entries: eighty-four file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(153)
+  test("has one hundred and fifty-five entries: eighty-four file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(155)
     expect(UPSTREAM_FILES).toHaveLength(84)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
@@ -361,7 +361,7 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
       const text = config()
       expect(text).toContain('dir.endsWith(".opencode") || dir.endsWith(ConfigPaths.BRAND_DIR) || dir === Flag.OPENCODE_CONFIG_DIR')
       expect(countOccurrences(text, '["opencode.json", "opencode.jsonc", `${ConfigPaths.BRAND}.json`, `${ConfigPaths.BRAND}.jsonc`]')).toBe(2)
-      expect(text).toContain("for (const managedDir of [ConfigManaged.managedConfigDir(), ConfigManaged.brandManagedConfigDir()])")
+      expect(text).toContain("for (const managedDir of ConfigManaged.managedConfigDirs())")
     })
 
     test("managed: a brand folder beside upstream's, and the brand MDM domain checked first", () => {
@@ -615,17 +615,17 @@ describe("company-controlled team folder and plugin lock", () => {
 
   test("the team folder is a config directory, so its agents, commands, skills, plugins and config files load", () => {
     const paths = read("packages/opencode/src/config/paths.ts")
-    expect(paths).toContain("...(existsSync(ConfigManaged.brandTeamConfigDir()) ? [ConfigManaged.brandTeamConfigDir()] : []),")
+    expect(paths).toContain("...ConfigManaged.teamConfigDirs(),")
     expect(config()).toContain(
-      'dir.endsWith(".opencode") || dir.endsWith(ConfigPaths.BRAND_DIR) || dir === Flag.OPENCODE_CONFIG_DIR || dir === ConfigManaged.brandTeamConfigDir()',
+      'dir.endsWith(".opencode") || dir.endsWith(ConfigPaths.BRAND_DIR) || dir === Flag.OPENCODE_CONFIG_DIR || ConfigManaged.isTeamConfigDir(dir)',
     )
     const tui = read("packages/opencode/src/config/tui.ts")
-    expect(countOccurrences(tui, "ConfigManaged.brandTeamConfigDir()")).toBe(2)
+    expect(countOccurrences(tui, "ConfigManaged.isTeamConfigDir(dir)")).toBe(2)
   })
 
   test("the plugin lock is a marker file only an administrator can create, and it keeps administrator-declared plugins only", () => {
     expect(managed()).toContain("export function pluginLockEnabled() {")
-    expect(managed()).toContain('existsSync(path.join(brandManagedConfigDir(), "plugin-lock"))')
+    expect(managed()).toContain('companyDirs().some((dir) => existsSync(path.join(dir, "plugin-lock")))')
     expect(managed()).toContain("export function isAdminSource(source: string) {")
     const text = config()
     const lock = text.indexOf("if (ConfigManaged.pluginLockEnabled() && result.plugin_origins) {")
@@ -643,6 +643,21 @@ describe("company-controlled team folder and plugin lock", () => {
     )
   })
 
+  test("the company set shipped inside the desktop app is read as the baseline, below the administrator folder", () => {
+    const m = managed()
+    expect(m).toContain("export function bundledCompanyDir() {")
+    expect(m).toContain("process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR")
+    // order matters: later wins, so the administrator folder comes after the bundled one
+    expect(m).toContain("export function managedConfigDirs() {")
+    expect(m).toContain("[managedConfigDir(), bundledCompanyDir(), brandManagedConfigDir()]")
+    expect(m).toContain("export function teamConfigDirs() {")
+    expect(m).toContain("export function isTeamConfigDir(dir: string) {")
+    const desktop = read("packages/desktop/src/main/index.ts")
+    expect(desktop).toContain('process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR = join(process.resourcesPath, "company")')
+    const builder = read("packages/desktop/electron-builder.config.ts")
+    expect(builder).toContain('{ from: "company/", to: "company/" },')
+  })
+
   test("isAdminSource: managed folders, the team folder and MDM count; a developer's own files do not", () => {
     // executed, not just read: the rule is small but is the whole point of the lock
     const body = managed()
@@ -658,6 +673,7 @@ describe("company-controlled team folder and plugin lock", () => {
       OPENCODE_TEST_MANAGED_CONFIG_DIR: "/managed/opencode",
       OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR: "/managed/simplify-code",
       OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR: "/managed/simplify-code/team",
+      SIMPLIFY_CODE_BUNDLED_COMPANY_DIR: "/Applications/Simplify Code.app/Contents/Resources/company",
     }
     const m = make(path.posix, () => false, { platform: () => "darwin", homedir: () => "/home/u", userInfo: () => ({ username: "u" }) }, { env, platform: "darwin" }, {})
     expect(m.isAdminSource("/managed/simplify-code/simplify-code.jsonc")).toBe(true)
@@ -667,6 +683,7 @@ describe("company-controlled team folder and plugin lock", () => {
     expect(m.isAdminSource("/home/u/.config/simplify-code/simplify-code.json")).toBe(false)
     expect(m.isAdminSource("/home/u/projects/app/.simplify-code/plugins/x.js")).toBe(false)
     expect(m.isAdminSource("/managed/simplify-code-evil/x.json")).toBe(false) // prefix, not a real child
+    expect(m.isAdminSource("/Applications/Simplify Code.app/Contents/Resources/company/team/skills/impeccable/SKILL.md")).toBe(true)
   })
 })
 
