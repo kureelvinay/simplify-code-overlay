@@ -103,8 +103,8 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and eight entries: sixty-four file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(108)
+  test("has one hundred and eleven entries: sixty-four file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(111)
     expect(UPSTREAM_FILES).toHaveLength(64)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
@@ -589,5 +589,65 @@ describe("desktop publisher", () => {
     expect(pkg.author.name).toBe("SimplifyX")
     const cfg = read("packages/desktop/electron-builder.config.ts")
     expect(cfg).toContain('copyright: "Copyright © OpenCode contributors, MIT License. Distributed by SimplifyX.",')
+  })
+})
+
+describe("company-controlled team folder and plugin lock", () => {
+  beforeEach(() => void applyTransforms(root, TRANSFORMS, vars, brandDir))
+  const managed = () => read("packages/opencode/src/config/managed.ts")
+  const config = () => read("packages/opencode/src/config/config.ts")
+
+  test("the team folder lives inside the brand managed folder and has a test hook", () => {
+    expect(managed()).toContain("export function brandTeamConfigDir() {")
+    expect(managed()).toContain('process.env.OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR || path.join(brandManagedConfigDir(), "team")')
+  })
+
+  test("the team folder is a config directory, so its agents, commands, skills, plugins and config files load", () => {
+    const paths = read("packages/opencode/src/config/paths.ts")
+    expect(paths).toContain("...(existsSync(ConfigManaged.brandTeamConfigDir()) ? [ConfigManaged.brandTeamConfigDir()] : []),")
+    expect(config()).toContain(
+      'dir.endsWith(".opencode") || dir.endsWith(ConfigPaths.BRAND_DIR) || dir === Flag.OPENCODE_CONFIG_DIR || dir === ConfigManaged.brandTeamConfigDir()',
+    )
+    const tui = read("packages/opencode/src/config/tui.ts")
+    expect(countOccurrences(tui, "ConfigManaged.brandTeamConfigDir()")).toBe(2)
+  })
+
+  test("the plugin lock is a marker file only an administrator can create, and it keeps administrator-declared plugins only", () => {
+    expect(managed()).toContain("export function pluginLockEnabled() {")
+    expect(managed()).toContain('existsSync(path.join(brandManagedConfigDir(), "plugin-lock"))')
+    expect(managed()).toContain("export function isAdminSource(source: string) {")
+    const text = config()
+    const lock = text.indexOf("if (ConfigManaged.pluginLockEnabled() && result.plugin_origins) {")
+    const mdm = text.indexOf("const managed = yield* Effect.promise(() => ConfigManaged.readManagedPreferences())")
+    const modes = text.indexOf("for (const [name, mode] of Object.entries(result.mode ?? {})) {")
+    expect(lock).toBeGreaterThan(mdm) // after every source has been merged
+    expect(lock).toBeLessThan(modes)
+    expect(text).toContain("result.plugin = kept.map((item) => item.spec)")
+  })
+
+  test("isAdminSource: managed folders, the team folder and MDM count; a developer's own files do not", () => {
+    // executed, not just read: the rule is small but is the whole point of the lock
+    const body = managed()
+      .split("\n")
+      .filter((line) => !line.startsWith("import ") && !line.startsWith("export * as"))
+      .join("\n")
+      .replace(/^export (async function|function|const|let)/gm, "$1")
+    const js = new Bun.Transpiler({ loader: "ts" }).transformSync(
+      `const __make = function (path, existsSync, os, process, Process) {\n${body}\nreturn { isAdminSource } }`,
+    )
+    const make = new Function(`${js}\nreturn __make`)() as (...args: unknown[]) => { isAdminSource(s: string): boolean }
+    const env = {
+      OPENCODE_TEST_MANAGED_CONFIG_DIR: "/managed/opencode",
+      OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR: "/managed/simplify-code",
+      OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR: "/managed/simplify-code/team",
+    }
+    const m = make(path.posix, () => false, { platform: () => "darwin", homedir: () => "/home/u", userInfo: () => ({ username: "u" }) }, { env, platform: "darwin" }, {})
+    expect(m.isAdminSource("/managed/simplify-code/simplify-code.jsonc")).toBe(true)
+    expect(m.isAdminSource("/managed/simplify-code/team/plugins/ciso-session.js")).toBe(true)
+    expect(m.isAdminSource("/managed/opencode/opencode.json")).toBe(true)
+    expect(m.isAdminSource("mobileconfig:/Library/Managed Preferences/com.simplifyx.simplify-code.managed.plist")).toBe(true)
+    expect(m.isAdminSource("/home/u/.config/simplify-code/simplify-code.json")).toBe(false)
+    expect(m.isAdminSource("/home/u/projects/app/.simplify-code/plugins/x.js")).toBe(false)
+    expect(m.isAdminSource("/managed/simplify-code-evil/x.json")).toBe(false) // prefix, not a real child
   })
 })
