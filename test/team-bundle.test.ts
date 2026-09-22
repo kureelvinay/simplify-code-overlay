@@ -20,6 +20,16 @@ describe("the team folder in the repo", () => {
     expect(existsSync(path.join(TEAM_DIR, "plugins", "package-lock.json"))).toBe(true)
   })
 
+  test("carries impeccable's OpenCode build, vendored with its licence and source tag", () => {
+    const skill = path.join(TEAM_DIR, "skills", "impeccable")
+    for (const f of ["SKILL.md", "LICENSE", "NOTICE.md", "VENDORED.md"]) expect(existsSync(path.join(skill, f))).toBe(true)
+    expect(readFileSync(path.join(skill, "SKILL.md"), "utf8")).toMatch(/^name: impeccable$/m)
+    expect(readFileSync(path.join(skill, "VENDORED.md"), "utf8")).toMatch(/at tag skill-v\d+\.\d+\.\d+/)
+    expect(existsSync(path.join(TEAM_DIR, "commands", "impeccable.md"))).toBe(true)
+    // its four agents are Claude Code specific and impeccable's own OpenCode build leaves them out
+    expect(existsSync(path.join(TEAM_DIR, "agents", "impeccable-finish-reviewer.md"))).toBe(false)
+  })
+
   test("carries no literal secret", () => {
     const files = readdirSync(TEAM_DIR, { recursive: true }) as string[]
     for (const rel of files) {
