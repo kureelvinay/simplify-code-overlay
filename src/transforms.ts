@@ -761,7 +761,7 @@ export const TRANSFORMS: Transform[] = [
     count: 1,
   },
 
-  // 156-161. The terminal binary carries the company set too. build.ts embeds packages/opencode/company (staged by
+  // 156-162. The terminal binary carries the company set too. build.ts embeds packages/opencode/company (staged by
   // the pipeline) as a virtual module, exactly like upstream's web UI; managed.ts extracts it at start.
   {
     kind: "edit",
@@ -807,6 +807,13 @@ export const TRANSFORMS: Transform[] = [
     file: "packages/opencode/script/build.ts",
     find: '      ...(embeddedFileMap ? ["opencode-web-ui.gen.ts"] : []),\n',
     replace: '      ...(embeddedFileMap ? ["opencode-web-ui.gen.ts"] : []),\n      ...(embeddedCompanyMap ? ["company-set.gen.ts"] : []),\n',
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/opencode/script/build-node.ts",
+    find: '    "opencode-web-ui.gen.ts": "",\n',
+    replace: '    "opencode-web-ui.gen.ts": "",\n    "company-set.gen.ts": "",\n',
     count: 1,
   },
   {
