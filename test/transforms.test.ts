@@ -672,6 +672,7 @@ describe("company-controlled team folder and plugin lock", () => {
     expect(m).toContain('path.join(Global.Path.cache, "company")')
     expect(m).toContain("path.join(root, mod.hash)")
     expect(m).toContain("process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR = dir")
+    expect(m).toContain("if (process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR !== undefined) return") // empty = switched off
     const index = read("packages/opencode/src/index.ts")
     expect(index).toContain("await ConfigManaged.prepareBundledCompanySet()")
     expect(index.indexOf("await ConfigManaged.prepareBundledCompanySet()")).toBeLessThan(index.indexOf("const cli = yargs(args)"))
