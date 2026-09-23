@@ -40,7 +40,13 @@ start using them with no rewriting.
 - The GUI already has a connector list: `/mcp` ("MCPs" dialog, search, on/off switch, status) and the
   session-header status popover ("MCP" tab, colour dot per status). Selecting a connector in state
   `needs_auth` calls the authenticate function, so sign-in works from the GUI today.
-- Today's "+" under the chat box is "Add files" only: one button that opens the file picker.
+- The "+" under the chat box: in the legacy composer it is a single "Add files" button, but the **new layout
+  (the default, and what the session page renders) already has a "+" menu**: Attachments, Commands, Context,
+  Shell. It lives in `session-ui` (`PromptInputV2AddMenu`), a generic component with no access to app state; the
+  app builds the controller and props it receives. (Corrected after implementation began: an earlier reading of
+  the legacy composer said the "+" had no menu.)
+- The app's own default permission is `"*": "allow"`, so connector tools run **without asking** unless the
+  enforced config says otherwise.
 - Permission rules already decide which MCP tools are visible to the model (`Permission.visibleTools`).
   MCP tool annotations (`readOnlyHint`) are **not** used anywhere, so read versus write cannot be inferred.
 - Missing UI strings fall back to English in every locale, so a new English-only key is safe.
@@ -70,8 +76,12 @@ Rules the checker (`script/check-managed.ts`, `src/managed.ts`) will enforce for
 - local `command` packages are pinned to an exact version (an unpinned `npx pkg` changes overnight);
 - an OAuth `clientId` that is still a placeholder fails the check for that connector.
 
-Connectors not yet ready (missing admin registration) ship `"enabled": false` so they never show a broken
-sign-in; enabling one is a one-line config change and a rebuild.
+Connectors not yet ready (missing admin registration) are **not** in the shipped config. A disabled entry
+still appears in the menu with a switch, and switching it on would fail against a placeholder address. Their
+templates live in `managed/connectors.pending.jsonc` (with the permission rule each will need); shipping one
+means filling in the placeholders and moving its two blocks into `managed/simplify-code.jsonc`. The checker
+rejects a placeholder in an enabled connector, so a template cannot ship by accident. Shipped now: `atlassian`
+and `slack`. Pending: `azure-devops`, `salesforce`, `servicenow`, `outlook`.
 
 ### 4.2 Sign-in
 
@@ -94,7 +104,17 @@ administrator-declared keys while the administrator directories are merged.
 
 ### 4.4 Permissions
 
-Default: every connector tool is `ask`. Per connector, a **read-tool allow-list** in the enforced
+Default: every connector tool is `ask`, written explicitly per connector (`"<key>_*": "ask"`) because the app
+allows by default. The checker requires the rule for every enabled connector and requires any read-only allow
+rule to come **after** it (the last matching rule wins).
+
+**Administrator rules are re-applied last.** Found by an end-to-end scenario: when the same key exists in a
+developer's file and an administrator's, the merged object keeps the *developer's earlier position*, so a
+developer who first writes `"atlassian_*"` and then a narrower `"atlassian_create*": "allow"` would put their
+allow after the company's ask and win. After every source has merged, the loader now deletes and re-inserts every
+administrator-declared permission rule, so the company's rules are always the last ones.
+
+Per connector, a **read-tool allow-list** in the enforced
 `permission` block turns known read tools (search, get, list) into `allow`. Because the app does not
 classify tools, the lists are produced by inspecting each server's tool list (the first implementation step, a spike) and are
 maintained in the repo next to the connector definitions. Write tools (create, update, delete, send, post)
@@ -102,8 +122,9 @@ are never on an allow-list.
 
 ### 4.5 The "+" menu (GUI transform)
 
-The "+" button in `packages/app/src/components/prompt-input.tsx` currently calls the file picker directly.
-It becomes a popover:
+The new-layout "+" menu (`PromptInputV2AddMenu` in `session-ui`) gains a **Connectors** group under Shell. The
+menu takes an optional `connectors` prop (absent means upstream's menu, unchanged); the app composer supplies it
+from the live connector state and the same toggle the `/mcp` dialog uses:
 
 ```
    Add files
@@ -115,15 +136,16 @@ It becomes a popover:
    ○ Salesforce         Sign in
 ```
 
-- **Add files** keeps the current behaviour and shortcut.
+- **Add files, Commands, Context, Shell** keep their current behaviour and shortcuts.
 - **Connectors** lists `sync().data.mcp` with the status dot used by the status popover; the switch or the
   "Sign in" action calls the existing `useMcpToggle` (which authenticates when the state is `needs_auth`).
 - Display names are the config keys prettified by a small map (`azure-devops` shows "Azure DevOps").
 - No "add custom connector" entry, matching the lock. The full `/mcp` dialog and status popover remain.
-- New strings (`prompt.action.connectors` and similar) are added to the English dictionary only.
+- One new string (`prompt.action.connectors`) in the English dictionary only; status badges reuse the existing
+  `mcp.status.*` strings.
 - Applies to the desktop app and `simplify-code web`. The terminal keeps `mcp list`, `mcp auth`, `/mcp`.
-- Follows the existing rules: the transform edits an exact anchor with an exact count and fails the build
-  on drift; a token-alias test guards any CSS.
+- Connected and switched-off connectors are checkbox rows; sign-in, failed and pending ones are plain rows with a
+  badge. Follows the existing rules: every edit is an exact anchor with an exact count and fails the build on drift.
 
 ### 4.6 Data path and security
 
@@ -168,7 +190,7 @@ a security review of any third-party MCP server code. These set the real schedul
 - **Outlook** has no first-party hosted server in current research; phase 3 needs a decision.
 - **Exact endpoints** for Azure DevOps, Salesforce (per org) and ServiceNow (per instance) are to be
   confirmed against each vendor's documentation and the customer's tenant during implementation.
-- **Upstream drift:** the "+" menu edits a frequently changing file; the build fails loudly on drift.
+- **Upstream drift:** the "+" menu edits three files in two packages; the build fails loudly on drift.
 - **Version drift of vendors' servers** (for example Atlassian's endpoint version) is a maintenance item.
 
 ## 9. Out of scope, for a later design

@@ -840,10 +840,17 @@ export const TRANSFORMS: Transform[] = [
     replace:
       "        // {{productName}}: connectors declared by an administrator source, for the connector lock below\n" +
       "        const adminMcp: Record<string, any> = {}\n" +
+      "        // ...and the permission rules an administrator declared: they are re-applied last, below\n" +
+      "        const adminPermission: Record<string, any> = {}\n" +
       "        const merge = (source: string, next: Info, kind?: ConfigPlugin.Scope) => {\n" +
       "          result = mergeConfigConcatArrays(result, next)\n" +
       "          if (next.mcp && ConfigManaged.isAdminSource(source)) {\n" +
       "            for (const [name, def] of Object.entries(next.mcp)) adminMcp[name] = mergeDeep((adminMcp[name] ?? {}) as any, def as any)\n" +
+      "          }\n" +
+      "          if (isRecord(next.permission) && ConfigManaged.isAdminSource(source)) {\n" +
+      "            for (const [key, value] of Object.entries(next.permission)) {\n" +
+      "              adminPermission[key] = isRecord(value) ? mergeDeep((adminPermission[key] ?? {}) as any, value as any) : value\n" +
+      "            }\n" +
       "          }\n" +
       "          return mergePluginOrigins(source, next.plugin, kind)\n" +
       "        }\n",
@@ -856,6 +863,15 @@ export const TRANSFORMS: Transform[] = [
     file: "packages/opencode/src/config/config.ts",
     find: "        for (const [name, mode] of Object.entries(result.mode ?? {})) {\n          result.agent = mergeDeep(result.agent ?? {}, {\n",
     replace:
+      "        // {{productName}}: the last matching permission rule wins, and a key that exists in both a developer's file and an\n" +
+      "        // administrator's keeps the developer's EARLIER position, so a narrower allow written after it would beat the\n" +
+      "        // administrator's ask. Re-append the administrator's rules so they are always the last.\n" +
+      "        if (isRecord(result.permission)) {\n" +
+      "          for (const [key, value] of Object.entries(adminPermission)) {\n" +
+      "            delete result.permission[key]\n" +
+      "            result.permission[key] = value\n" +
+      "          }\n" +
+      "        }\n\n" +
       "        // {{productName}}: with the mcp-lock marker, only administrator-declared connectors load, exactly as declared.\n" +
       "        if (ConfigManaged.mcpLockEnabled()) {\n" +
       "          const dropped = Object.keys(result.mcp ?? {}).filter((name) => !(name in adminMcp))\n" +
@@ -863,6 +879,125 @@ export const TRANSFORMS: Transform[] = [
       "          result.mcp = adminMcp\n" +
       "        }\n\n" +
       "        for (const [name, mode] of Object.entries(result.mode ?? {})) {\n          result.agent = mergeDeep(result.agent ?? {}, {\n",
+    count: 1,
+  },
+
+  // 165-172. The "+" menu under the chat box lists the company connectors (MCP servers), like Claude's. The add menu is a
+  // generic component in session-ui with no access to app state, so it takes an optional list; the app composer builds it
+  // from the live connector state and the same toggle the /mcp dialog uses (which starts OAuth sign-in when needed).
+  {
+    kind: "edit",
+    file: "packages/session-ui/src/v2/components/prompt-input/index.tsx",
+    find: "  attachKeybind?: string[]\n  attachShortcut?: string\n}\n\nexport function PromptInputV2(props: PromptInputV2Props) {\n",
+    replace:
+      "  attachKeybind?: string[]\n  attachShortcut?: string\n  /** {{productName}}: the company connectors, listed in the add menu. Supplied by the app; absent means no group. */\n  connectors?: PromptInputV2Connectors\n}\n\n" +
+      "/** {{productName}}: one connector (an MCP server) as the add menu shows it. */\n" +
+      "export interface PromptInputV2ConnectorItem {\n  id: string\n  name: string\n  /** connected, disabled, pending, failed, needs_auth or needs_client_registration */\n  status: string\n}\n\n" +
+      "export interface PromptInputV2Connectors {\n  label: string\n  items: () => PromptInputV2ConnectorItem[]\n  statusLabel: (status: string) => string | undefined\n  onToggle: (id: string) => void\n}\n\n" +
+      "export function PromptInputV2(props: PromptInputV2Props) {\n",
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/session-ui/src/v2/components/prompt-input/index.tsx",
+    find: "              onShell={props.controller.openShell}\n            />\n",
+    replace: "              onShell={props.controller.openShell}\n              connectors={props.connectors}\n            />\n",
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/session-ui/src/v2/components/prompt-input/index.tsx",
+    find: "  onContext: () => void\n  onShell: () => void\n}) {\n",
+    replace: "  onContext: () => void\n  onShell: () => void\n  connectors?: PromptInputV2Connectors\n}) {\n",
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/session-ui/src/v2/components/prompt-input/index.tsx",
+    find: '            <MenuV2.Item onSelect={props.onShell} shortcut="!">\n              {props.shellLabel}\n            </MenuV2.Item>\n',
+    replace:
+      '            <MenuV2.Item onSelect={props.onShell} shortcut="!">\n              {props.shellLabel}\n            </MenuV2.Item>\n' +
+      "            {/* {{productName}}: company connectors. Connected and switched-off ones are checkbox rows; the rest (sign in, failed) are plain rows with a badge. */}\n" +
+      "            <Show when={(props.connectors?.items().length ?? 0) > 0}>\n" +
+      "              <MenuV2.Separator />\n" +
+      "              <MenuV2.Group>\n" +
+      "                <MenuV2.GroupLabel>{props.connectors!.label}</MenuV2.GroupLabel>\n" +
+      "                <For each={props.connectors!.items()}>\n" +
+      "                  {(item) => (\n" +
+      "                    <Show\n" +
+      '                      when={item.status === "connected" || item.status === "disabled"}\n' +
+      "                      fallback={\n" +
+      "                        <MenuV2.Item\n" +
+      "                          data-connector={item.id}\n" +
+      "                          data-status={item.status}\n" +
+      '                          disabled={item.status === "pending"}\n' +
+      "                          badge={props.connectors!.statusLabel(item.status)}\n" +
+      "                          onSelect={() => props.connectors!.onToggle(item.id)}\n" +
+      "                        >\n" +
+      "                          {item.name}\n" +
+      "                        </MenuV2.Item>\n" +
+      "                      }\n" +
+      "                    >\n" +
+      "                      <MenuV2.CheckboxItem\n" +
+      "                        data-connector={item.id}\n" +
+      "                        data-status={item.status}\n" +
+      '                        checked={item.status === "connected"}\n' +
+      "                        onChange={() => props.connectors!.onToggle(item.id)}\n" +
+      "                      >\n" +
+      "                        {item.name}\n" +
+      "                      </MenuV2.CheckboxItem>\n" +
+      "                    </Show>\n" +
+      "                  )}\n" +
+      "                </For>\n" +
+      "              </MenuV2.Group>\n" +
+      "            </Show>\n",
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/app/src/components/prompt-input-v2.tsx",
+    find: 'import { useSync } from "@/context/sync"\n',
+    replace: 'import { useSync } from "@/context/sync"\nimport { useMcpToggle } from "@/context/mcp"\n',
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/app/src/components/prompt-input-v2.tsx",
+    find: "export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {\n  const dialog = useDialog()\n  const command = useCommand()\n  const language = useLanguage()\n",
+    replace:
+      "export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {\n  const dialog = useDialog()\n  const command = useCommand()\n  const language = useLanguage()\n\n" +
+      "  // {{productName}}: the company connectors for the \"+\" menu, from the live connector state and the toggle the /mcp dialog uses\n" +
+      "  const connectorSync = useSync()\n" +
+      "  const connectorToggle = useMcpToggle()\n" +
+      "  const connectorNames: Record<string, string> = {\n" +
+      '    atlassian: "Atlassian (Jira, Confluence)",\n    slack: "Slack",\n    "azure-devops": "Azure DevOps",\n    salesforce: "Salesforce",\n    servicenow: "ServiceNow",\n    outlook: "Outlook",\n  }\n' +
+      "  const connectorName = (id: string) =>\n" +
+      '    connectorNames[id] ?? id.split(/[-_]/).filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1)).join(" ")\n' +
+      "  const connectorStatusKeys: Record<string, string> = {\n" +
+      '    connected: "mcp.status.connected",\n    failed: "mcp.status.failed",\n    needs_auth: "mcp.status.needs_auth",\n    needs_client_registration: "mcp.status.needs_client_registration",\n    disabled: "mcp.status.disabled",\n  }\n' +
+      "  const connectors = {\n" +
+      '    label: language.t("prompt.action.connectors"),\n' +
+      "    items: () =>\n" +
+      "      Object.entries(connectorSync().data.mcp ?? {})\n" +
+      "        .map(([id, entry]) => ({ id, name: connectorName(id), status: entry.status as string }))\n" +
+      "        .sort((a, b) => a.name.localeCompare(b.name)),\n" +
+      "    statusLabel: (status: string) => (connectorStatusKeys[status] ? language.t(connectorStatusKeys[status] as never) : undefined),\n" +
+      "    onToggle: (id: string) => {\n      if (!connectorToggle.isPending) connectorToggle.mutate(id)\n    },\n" +
+      "  }\n",
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/app/src/components/prompt-input-v2.tsx",
+    find: '        attachShortcut={command.keybind("file.attach")}\n',
+    replace: '        attachShortcut={command.keybind("file.attach")}\n        connectors={connectors}\n',
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/app/src/i18n/en.ts",
+    find: '  "prompt.action.attachFile": "Add files",\n',
+    replace: '  "prompt.action.attachFile": "Add files",\n  "prompt.action.connectors": "Connectors",\n',
     count: 1,
   },
 

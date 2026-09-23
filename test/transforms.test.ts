@@ -109,9 +109,9 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and sixty-four entries: eighty-five file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(164)
-    expect(UPSTREAM_FILES).toHaveLength(85)
+  test("has one hundred and seventy-two entries: eighty-eight file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(172)
+    expect(UPSTREAM_FILES).toHaveLength(88)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
       "packages/desktop/src/renderer/i18n/*.ts",
@@ -126,7 +126,8 @@ describe("TRANSFORMS against v1.18.31 fixtures", () => {
       ...["de", "en", "fi"].map((l) => `packages/app/src/i18n/${l}.ts`),
       ...["de", "en"].map((l) => `packages/desktop/src/renderer/i18n/${l}.ts`),
     ]
-    expect(written.sort()).toEqual([...UPSTREAM_FILES, ...locales].sort())
+    // en.ts is both an explicit target (a new string) and covered by the locale rule; count it once
+    expect(written.sort()).toEqual([...new Set([...UPSTREAM_FILES, ...locales])].sort())
   })
 
   test("removes app-facing OpenCode strings but keeps Zen/Go product names", () => {
@@ -680,6 +681,17 @@ describe("company-controlled team folder and plugin lock", () => {
     expect(index.indexOf("await ConfigManaged.prepareBundledCompanySet()")).toBeLessThan(index.indexOf("const cli = yargs(args)"))
   })
 
+  test("administrator permission rules are re-applied LAST, because a merged key keeps the developer's earlier position and the last matching rule wins", () => {
+    const text = config()
+    expect(text).toContain("const adminPermission: Record<string, any> = {}")
+    expect(text).toContain("if (isRecord(next.permission) && ConfigManaged.isAdminSource(source))")
+    expect(text).toContain("adminPermission[key] = isRecord(value) ? mergeDeep((adminPermission[key] ?? {}) as any, value as any) : value")
+    const reapply = text.indexOf("for (const [key, value] of Object.entries(adminPermission)) {")
+    expect(reapply).toBeGreaterThan(text.indexOf("const managed = yield* Effect.promise(() => ConfigManaged.readManagedPreferences())")) // after every source
+    expect(reapply).toBeLessThan(text.indexOf("for (const [name, mode] of Object.entries(result.mode ?? {})) {"))
+    expect(text).toContain("delete result.permission[key]\n            result.permission[key] = value")
+  })
+
   test("connector lock: administrator-declared connectors are collected while merging, then REPLACE whatever else was merged", () => {
     const m = managed()
     expect(m).toContain("export function mcpLockEnabled() {")
@@ -792,5 +804,48 @@ describe("no traces of the upstream name on an installed machine", () => {
   test("deep links use the product's own scheme end to end", () => {
     expect(read("packages/desktop/src/main/index.ts")).toContain('arg.startsWith("simplify-code://")')
     expect(read("packages/app/src/pages/layout/deep-links.ts")).toContain('input.startsWith("simplify-code://")')
+  })
+})
+
+describe("the + menu lists the company connectors", () => {
+  beforeEach(() => void applyTransforms(root, TRANSFORMS, vars, brandDir))
+  const menu = () => read("packages/session-ui/src/v2/components/prompt-input/index.tsx")
+  const composer = () => read("packages/app/src/components/prompt-input-v2.tsx")
+
+  test("the add menu takes an optional connector list and renders a labelled group under Shell", () => {
+    const m = menu()
+    expect(m).toContain("connectors?: PromptInputV2Connectors\n}")
+    expect(m).toContain("export interface PromptInputV2Connectors {")
+    expect(m).toContain("connectors={props.connectors}")
+    // without connectors the menu is upstream's, unchanged: the group only renders when there is something to show
+    expect(m).toContain("<Show when={(props.connectors?.items().length ?? 0) > 0}>")
+    expect(m).toContain("<MenuV2.GroupLabel>{props.connectors!.label}</MenuV2.GroupLabel>")
+    // connected and switched-off connectors are checkbox rows; the rest (sign in, failed, pending) are plain rows with a badge
+    expect(m).toContain('when={item.status === "connected" || item.status === "disabled"}')
+    expect(m).toContain('checked={item.status === "connected"}')
+    expect(m).toContain('disabled={item.status === "pending"}')
+    expect(m).toContain("badge={props.connectors!.statusLabel(item.status)}")
+    expect(m).toContain("data-connector={item.id}")
+    // placed after the Shell entry, inside the same menu
+    expect(m.indexOf("data-connector={item.id}")).toBeGreaterThan(m.indexOf("{props.shellLabel}"))
+  })
+
+  test("the app supplies the list from the live connector state and the toggle the /mcp dialog already uses", () => {
+    const c = composer()
+    expect(c).toContain('import { useMcpToggle } from "@/context/mcp"')
+    expect(c).toContain("const connectorToggle = useMcpToggle()")
+    expect(c).toContain("Object.entries(connectorSync().data.mcp ?? {})")
+    expect(c).toContain("connectorToggle.mutate(id)")
+    expect(c).toContain("connectors={connectors}")
+    // readable names for the company connectors, with a title-cased fallback for anything else
+    for (const name of ['atlassian: "Atlassian (Jira, Confluence)"', 'slack: "Slack"', '"azure-devops": "Azure DevOps"', 'servicenow: "ServiceNow"']) {
+      expect(c).toContain(name)
+    }
+    for (const key of ["mcp.status.needs_auth", "mcp.status.failed", "mcp.status.needs_client_registration"]) expect(c).toContain(key)
+  })
+
+  test("the label is an English string only: every other language falls back to English", () => {
+    expect(read("packages/app/src/i18n/en.ts")).toContain('"prompt.action.connectors": "Connectors",')
+    expect(read("packages/app/src/i18n/de.ts")).not.toContain("prompt.action.connectors")
   })
 })
