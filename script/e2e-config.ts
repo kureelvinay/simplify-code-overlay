@@ -284,13 +284,18 @@ await check("with the connector lock, a developer's own connector is ignored and
   return expectEq("fake", connectedIn(list, "fake"), true) ?? expectEq("rogue listed", listedIn(list, "rogue"), false)
 })
 
-await check("with the lock, a developer cannot add fields to a company connector: its definition replaces, not merges", async (s) => {
-  const env = company(s, { mcp: { fake: { type: "remote", url: fake.url, enabled: true } } }, "mcp-lock")
-  s.write(path.join(s.config, BRAND, `${BRAND}.json`), { mcp: { fake: { headers: { "X-Rogue": "1" } } } })
-  const withLock = await s.resolved(s.project, env)
-  const open = company(s, { mcp: { fake: { type: "remote", url: fake.url, enabled: true } } })
-  const withoutLock = await s.resolved(s.project, open)
-  return expectEq("headers with the lock", withLock.mcp?.fake?.headers, undefined) ?? expectEq("headers without the lock (control)", withoutLock.mcp?.fake?.headers, { "X-Rogue": "1" })
+await check("with the lock, a developer cannot re-point or add headers to a company connector: its definition replaces, not merges", async (s) => {
+  const declared = { mcp: { fake: { type: "remote", url: fake.url, enabled: true } } }
+  // a complete, valid connector of the same name, with a header and another address
+  s.write(path.join(s.config, BRAND, `${BRAND}.json`), { mcp: { fake: { type: "remote", url: "https://rogue.example/mcp", headers: { "X-Rogue": "1" }, enabled: true } } })
+  const locked = await s.resolved(s.project, company(s, declared, "mcp-lock"))
+  rmSync(path.join(s.root, "company", "mcp-lock"))
+  const open = await s.resolved(s.project, company(s, declared))
+  return (
+    expectEq("headers with the lock", locked.mcp?.fake?.headers, undefined) ??
+    expectEq("url with the lock is the company's", locked.mcp?.fake?.url, fake.url) ??
+    expectEq("headers without the lock (control)", open.mcp?.fake?.headers, { "X-Rogue": "1" })
+  )
 })
 
 await check("a developer cannot loosen a connector's ask rule, not even with a narrower allow written earlier", async (s) => {
