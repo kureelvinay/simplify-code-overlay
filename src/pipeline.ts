@@ -11,7 +11,7 @@ import { buildMacApp } from "./launcher"
 import { archiveBinaries, writeBundle } from "./bundle"
 import { buildDesktop, buildDesktopTargets, DESKTOP_TARGETS, DesktopBuildError, installDesktop, verifyDesktop, verifyWindowsDesktop } from "./desktop"
 import { writeDesktopBundle } from "./desktop-bundle"
-import { writeTeamBundle } from "./team-bundle"
+import { stageCompanySet, writeTeamBundle } from "./team-bundle"
 
 export const EXIT = { input: 1, drift: 2, toolchain: 3, build: 4, smoke: 5, publish: 6 } as const
 
@@ -131,6 +131,10 @@ export async function prepare(
   opts: { single: boolean; skipWebUi: boolean },
 ): Promise<{ upstreamRoot: string; distDir: string }> {
   const { upstreamRoot, env } = await checkout(brand, version)
+
+  // the terminal binary carries the company set too: build.ts embeds packages/opencode/company (transforms 156-161)
+  console.log("\n== stage the company set for the terminal binary ==")
+  await stageCompanySet(path.join(upstreamRoot, "packages/opencode/company"), brand)
 
   console.log("\n== upstream build ==")
   const flags = [opts.single ? "--single" : "", opts.skipWebUi ? "--skip-embed-web-ui" : ""].filter(Boolean)

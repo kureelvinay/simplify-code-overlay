@@ -24,7 +24,7 @@ interface Sandbox {
   config: string
   project: string
   write(file: string, value: unknown): void
-  resolved(cwd?: string, env?: Record<string, string>): Promise<Record<string, any>>
+  resolved(cwd?: string, env?: Record<string, string | undefined>): Promise<Record<string, any>>
   run(args: string[], cwd?: string): Promise<string>
 }
 
@@ -43,9 +43,13 @@ function sandbox(): Sandbox {
     OPENCODE_TEST_MANAGED_CONFIG_DIR: path.join(root, "no-managed"),
     OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR: path.join(root, "no-brand-managed"),
     OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR: path.join(root, "no-team"),
+    SIMPLIFY_CODE_BUNDLED_COMPANY_DIR: "", // empty: the set embedded in the binary is switched off, so scenarios start from nothing
     OPENCODE_DISABLE_AUTOUPDATE: "1",
     ...extra,
   })
+  // a scenario that wants a variable UNSET passes undefined; a plain spread would keep the default
+  const envClean = (extra: Record<string, string | undefined> = {}) =>
+    Object.fromEntries(Object.entries(env(extra as Record<string, string>)).filter(([, v]) => v !== undefined)) as Record<string, string>
   return {
     root,
     config,
@@ -57,7 +61,7 @@ function sandbox(): Sandbox {
     async resolved(cwd = project, extra = {}) {
       // to a file, not a pipe: the CLI can exit before a large piped write is flushed
       const out = path.join(root, `resolved-${Math.random().toString(36).slice(2)}.json`)
-      await $`sh -c ${`"${bin}" debug config > "${out}" 2>/dev/null`}`.cwd(cwd).env(env(extra)).quiet().nothrow()
+      await $`sh -c ${`"${bin}" debug config > "${out}" 2>/dev/null`}`.cwd(cwd).env(envClean(extra)).quiet().nothrow()
       const raw = readFileSync(out, "utf8")
       return JSON.parse(raw.slice(raw.indexOf("{")))
     },
@@ -229,6 +233,23 @@ await check("the administrator folder overrides the bundled set, for hot-fixes w
   s.write(path.join(admin, `${BRAND}.json`), { model: "admin/model" })
   const c = await s.resolved(s.project, { SIMPLIFY_CODE_BUNDLED_COMPANY_DIR: bundled, OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR: admin, OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR: path.join(admin, "team") })
   return expectEq("model", c.model, "admin/model") ?? expectEq("small_model kept from bundled", c.small_model, "bundled/small")
+})
+
+// The compiled terminal binary carries the company set itself (embedded at build time, extracted into the cache).
+await check("with no environment pointing anywhere, the binary's own embedded company set is in force", async (s) => {
+  const c = await s.resolved(s.project, { SIMPLIFY_CODE_BUNDLED_COMPANY_DIR: undefined })
+  const out = path.join(s.root, "skills.json")
+  await $`sh -c ${`"${bin}" debug skill > "${out}" 2>/dev/null`}`.cwd(s.project).env({ ...process.env, XDG_CONFIG_HOME: s.config, XDG_CACHE_HOME: path.join(s.root, "cache"), XDG_DATA_HOME: path.join(s.root, "data"), OPENCODE_TEST_HOME: s.root, OPENCODE_TEST_MANAGED_CONFIG_DIR: path.join(s.root, "no-managed"), OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR: path.join(s.root, "no-brand-managed"), OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR: path.join(s.root, "no-team"), OPENCODE_DISABLE_AUTOUPDATE: "1" }).quiet().nothrow()
+  const raw = readFileSync(out, "utf8")
+  const skills = JSON.parse(raw.slice(raw.indexOf("["))) as { name: string; location: string }[]
+  const extracted = path.join(s.root, "cache", BRAND, "company")
+  const fromBundle = skills.filter((k) => k.location.startsWith(extracted))
+  return (
+    expectEq("share enforced by the embedded config", c.share, "disabled") ??
+    expectEq("impeccable from the embedded set", fromBundle.some((k) => k.name === "impeccable"), true) ??
+    expectEq("superpowers from the embedded set", fromBundle.some((k) => k.name === "brainstorming"), true) ??
+    expectEq("extracted once, with its completion marker", existsSync(path.join(extracted, readdirSync(extracted)[0] ?? "x", ".complete")), true)
+  )
 })
 
 const version = (await $`${bin} --version`.quiet().nothrow().text()).trim()

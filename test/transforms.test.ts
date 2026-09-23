@@ -109,9 +109,9 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and fifty-five entries: eighty-four file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(155)
-    expect(UPSTREAM_FILES).toHaveLength(84)
+  test("has one hundred and sixty-two entries: eighty-five file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(162)
+    expect(UPSTREAM_FILES).toHaveLength(85)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
       "packages/desktop/src/renderer/i18n/*.ts",
@@ -656,6 +656,28 @@ describe("company-controlled team folder and plugin lock", () => {
     expect(desktop).toContain('process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR = join(process.resourcesPath, "company")')
     const builder = read("packages/desktop/electron-builder.config.ts")
     expect(builder).toContain('{ from: "company/", to: "company/" },')
+  })
+
+  test("the terminal binary carries the company set too: embedded at build time, extracted once per content hash at start", () => {
+    const build = read("packages/opencode/script/build.ts")
+    // mirrors upstream's own web-UI embedding: a virtual module only the compiled binary gets
+    expect(build).toContain("const createEmbeddedCompanyBundle = async () => {")
+    expect(build).toContain('path.join(dir, "company")')
+    expect(build).toContain('...(embeddedCompanyMap ? { "company-set.gen.ts": embeddedCompanyMap } : {}),')
+    expect(build).toContain('...(embeddedCompanyMap ? ["company-set.gen.ts"] : []),')
+    expect(build).toContain("export const hash = ")
+    const m = managed()
+    expect(m).toContain("export async function prepareBundledCompanySet() {")
+    expect(m).toContain('import("company-set.gen.ts")')
+    expect(m).toContain('path.join(Global.Path.cache, "company")')
+    expect(m).toContain("path.join(root, mod.hash)")
+    expect(m).toContain("process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR = dir")
+    expect(m).toContain("if (process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR !== undefined) return") // empty = switched off
+    // the desktop's server build must see an empty stand-in, as it does for upstream's web-UI module, or Rollup fails to resolve it
+    expect(read("packages/opencode/script/build-node.ts")).toContain('"opencode-web-ui.gen.ts": "",\n    "company-set.gen.ts": "",')
+    const index = read("packages/opencode/src/index.ts")
+    expect(index).toContain("await ConfigManaged.prepareBundledCompanySet()")
+    expect(index.indexOf("await ConfigManaged.prepareBundledCompanySet()")).toBeLessThan(index.indexOf("const cli = yargs(args)"))
   })
 
   test("isAdminSource: managed folders, the team folder and MDM count; a developer's own files do not", () => {
