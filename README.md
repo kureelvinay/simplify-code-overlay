@@ -80,6 +80,14 @@ Developers' home folders are never touched. The one thing each developer provide
 
 On an installed machine the upstream name does not appear: the command is `simplify-code`, its data, cache, config and state folders are `…/simplify-code`, the Windows install folder is `Programs\simplify-code-desktop`, deep links use `simplify-code://`, the help header and every message that names the command use the product name, and no `app-update.yml` pointing at upstream's releases is generated. Two deliberate exceptions: the third-party service names "OpenCode Zen" and "OpenCode Go" (hidden anyway by the provider lock), and the MIT licence file, which must credit the original authors.
 
+### Connectors
+
+Developers connect to Jira/Confluence, Slack and, later, Azure DevOps, Salesforce, ServiceNow and Outlook from the
+**+** menu under the chat box. They are MCP servers listed in the enforced config; each developer signs in as
+themselves, every connector tool asks before it runs (the app allows by default, so the enforced config says
+otherwise explicitly), and `mcp-lock` keeps the list the company's. Guide, IT prerequisites per system, how to enable
+a pending connector and the manual test checklist: `managed/CONNECTORS.md`. Design: `docs/superpowers/specs/2026-09-23-connectors-design.md`.
+
 ### Packaging the desktop app (`--desktop-package`)
 
 Runs on a Mac and cross-builds four installers: Apple Silicon and Intel zips, and Windows x64 and ARM64 setup programs, plus `install-mac.sh`, `install-windows.ps1`, `INSTALL.md` and `SHA256SUMS`. Allow about half an hour.
