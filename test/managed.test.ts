@@ -17,6 +17,10 @@ const good = {
   model: "company-gateway/bulk",
   small_model: "company-gateway/bulk-light",
   enabled_providers: ["company-gateway"],
+  mcp: {
+    atlassian: { type: "remote", url: "https://mcp.atlassian.com/v2/mcp", enabled: true },
+  },
+  permission: { "atlassian_*": "ask" },
   share: "disabled",
   autoupdate: false,
   experimental: {
@@ -106,5 +110,116 @@ describe("the shipped draft, managed/simplify-code.jsonc", () => {
     expect(Object.keys(config.provider["company-gateway"].models)).toEqual(["bulk", "bulk-light", "escalate", "frontier"])
     expect(config.model).toBe("company-gateway/bulk")
     expect(config.small_model).toBe("company-gateway/bulk-light")
+  })
+})
+
+describe("connectors (mcp) in the managed config", () => {
+  test("a complete connector with its ask rule is accepted", () => {
+    expect(lint(() => {})).toEqual([])
+  })
+
+  test("an enabled remote connector needs a real https address", () => {
+    expect(lint((c) => (c.mcp.atlassian.url = "http://mcp.example.internal/mcp"))[0]).toContain('connector "atlassian": url must use https')
+    expect(lint((c) => (c.mcp.atlassian.url = "https://REPLACE-WITH-YOUR-ORG.example/mcp"))[0]).toContain("placeholder")
+    expect(lint((c) => (c.mcp.atlassian.url = "https://localhost:8931/mcp"))[0]).toContain("loopback")
+    expect(lint((c) => delete c.mcp.atlassian.url)[0]).toContain('connector "atlassian": a remote connector needs a url')
+  })
+
+  test("a DISABLED connector may still carry placeholders: it is a template awaiting an admin registration", () => {
+    expect(
+      lint((c) => {
+        c.mcp.salesforce = { type: "remote", url: "https://REPLACE-WITH-YOUR-ORG.example/mcp", enabled: false }
+      }),
+    ).toEqual([])
+  })
+
+  test("every enabled connector must ask before running its tools: the app's own default is to allow", () => {
+    expect(lint((c) => delete c.permission)[0]).toContain('"atlassian_*": "ask"')
+    expect(lint((c) => (c.permission = { "atlassian_*": "allow" }))[0]).toContain('"atlassian_*": "ask"')
+    // a hyphenated key keeps its hyphen in tool names
+    expect(
+      lint((c) => {
+        c.mcp["azure-devops"] = { type: "remote", url: "https://mcp.dev.azure.com/acme", enabled: true }
+      })[0],
+    ).toContain('"azure-devops_*": "ask"')
+  })
+
+  test("a read-only allow rule must come after the ask rule, because the last matching rule wins", () => {
+    expect(lint((c) => (c.permission = { "atlassian_search*": "allow", "atlassian_*": "ask" }))[0]).toContain("comes before")
+    expect(lint((c) => (c.permission = { "atlassian_*": "ask", "atlassian_search*": "allow" }))).toEqual([])
+  })
+
+  test("no rule may allow every tool of a connector", () => {
+    expect(lint((c) => (c.permission = { "atlassian_*": "ask", "*": "allow" }))[0]).toContain("allows every tool")
+  })
+
+  test("a literal token in headers or oauth is rejected; references are fine", () => {
+    expect(lint((c) => (c.mcp.atlassian.headers = { Authorization: "Bearer abc123" }))[0]).toContain("literal secret")
+    expect(lint((c) => (c.mcp.atlassian.oauth = { clientId: "abc", clientSecret: "shh" }))[0]).toContain("literal secret")
+    expect(lint((c) => (c.mcp.atlassian.oauth = { clientId: "abc", clientSecret: "{file:~/.config/simplifyx/atlassian-secret}" }))).toEqual([])
+  })
+
+  test("an enabled OAuth clientId that is still a placeholder is rejected", () => {
+    expect(lint((c) => (c.mcp.atlassian.oauth = { clientId: "REPLACE-WITH-CLIENT-ID" }))[0]).toContain("clientId is still a placeholder")
+  })
+
+  test("a local connector's package must be pinned to an exact version", () => {
+    const local = (command: string[]) => (c: any) => {
+      c.mcp.outlook = { type: "local", command, enabled: true }
+      c.permission["outlook_*"] = "ask"
+    }
+    expect(lint(local(["npx", "-y", "@softeria/ms-365-mcp-server"]))[0]).toContain("not pinned")
+    expect(lint(local(["npx", "-y", "@softeria/ms-365-mcp-server@latest"]))[0]).toContain("not pinned")
+    expect(lint(local(["npx", "-y", "@softeria/ms-365-mcp-server@1.4.2"]))).toEqual([])
+    expect(lint(local(["uvx", "some-server"]))[0]).toContain("not pinned")
+    expect(lint(local(["uvx", "some-server==2.0.1"]))).toEqual([])
+    expect(lint(local(["/opt/company/bin/outlook-mcp"]))).toEqual([]) // an installed binary is the company's own
+  })
+})
+
+describe("the shipped connectors", () => {
+  const text = readFileSync(path.join(import.meta.dir, "../managed/simplify-code.jsonc"), "utf8")
+  const config = parseJsonc(text) as any
+
+  test("Atlassian and Slack are enabled: their hosted servers need no per-app registration on our side", () => {
+    expect(config.mcp.atlassian).toEqual({ type: "remote", url: "https://mcp.atlassian.com/v2/mcp", enabled: true })
+    expect(config.mcp.slack).toEqual({ type: "remote", url: "https://mcp.slack.com/mcp", enabled: true })
+  })
+
+  test("each enabled connector asks before running any tool", () => {
+    expect(config.permission["atlassian_*"]).toBe("ask")
+    expect(config.permission["slack_*"]).toBe("ask")
+    // and the whole file still lints clean apart from the gateway placeholder
+    expect(lintManagedConfig(text)).toHaveLength(1)
+  })
+
+  test("connectors that need an admin registration are NOT in the shipped config: a disabled entry would still show in the menu and fail when switched on", () => {
+    for (const pending of ["azure-devops", "salesforce", "servicenow", "outlook"]) expect(config.mcp[pending]).toBeUndefined()
+  })
+})
+
+describe("managed/connectors.pending.jsonc: templates for the connectors awaiting registration", () => {
+  const templates = parseJsonc(readFileSync(path.join(import.meta.dir, "../managed/connectors.pending.jsonc"), "utf8")) as any
+
+  test("covers Azure DevOps, Salesforce, ServiceNow and Outlook, each disabled and each with the permission rule it will need", () => {
+    for (const name of ["azure-devops", "salesforce", "servicenow", "outlook"]) {
+      expect(templates.mcp[name]).toBeDefined()
+      expect(templates.mcp[name].enabled).toBe(false)
+      expect(templates.permission[`${name}_*`]).toBe("ask")
+    }
+  })
+
+  test("moving a template into the managed file with its placeholders filled in lints clean", () => {
+    const filled = structuredClone(good) as any
+    filled.mcp["azure-devops"] = { ...templates.mcp["azure-devops"], url: "https://mcp.dev.azure.com/acme", enabled: true }
+    filled.permission["azure-devops_*"] = templates.permission["azure-devops_*"]
+    expect(lintManagedConfig(JSON.stringify(filled))).toEqual([])
+  })
+
+  test("un-filled, an enabled template is rejected, so nobody ships a placeholder by moving it and forgetting to edit", () => {
+    const raw = structuredClone(good) as any
+    raw.mcp.salesforce = { ...templates.mcp.salesforce, enabled: true }
+    raw.permission["salesforce_*"] = "ask"
+    expect(lintManagedConfig(JSON.stringify(raw)).some((p) => p.includes("placeholder"))).toBe(true)
   })
 })

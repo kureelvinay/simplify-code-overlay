@@ -66,6 +66,75 @@ function secretProblems(value: unknown, at: string, problems: string[]): void {
   }
 }
 
+const PLACEHOLDER = /replace|example\.com|your-/i
+/** Tool names are `<connector>_<tool>` after this replacement (mcp/catalog.ts), and permission rules match those names. */
+const toolPrefix = (name: string) => name.replace(/[^a-zA-Z0-9_-]/g, "_") + "_"
+
+/** A package pinned to an exact version: `pkg@1.2.3` (scoped names start with @) or `pkg==1.2.3`. */
+function pinned(spec: string): boolean {
+  if (spec.includes("==")) return true
+  const at = spec.lastIndexOf("@")
+  return at > 0 && /^\d/.test(spec.slice(at + 1))
+}
+
+/**
+ * Connectors (config key `mcp`). Enabled ones must be reachable and safe: real https addresses, no literal secrets
+ * (secretProblems covers those), pinned local packages, and, because the app's own default is to ALLOW every tool,
+ * an explicit ask rule per connector. A disabled connector is a template awaiting an admin registration and only
+ * needs to exist.
+ */
+function connectorProblems(config: Dict, problems: string[]): void {
+  const connectors = isDict(config.mcp) ? config.mcp : {}
+  const permission = isDict(config.permission) ? config.permission : {}
+  const keys = Object.keys(permission)
+  for (const [name, def] of Object.entries(connectors)) {
+    if (!isDict(def) || def.enabled === false) continue
+    const tag = `connector "${name}"`
+    if (def.type === "remote") {
+      if (typeof def.url !== "string") {
+        problems.push(`${tag}: a remote connector needs a url`)
+      } else if (PLACEHOLDER.test(def.url)) {
+        problems.push(`${tag}: url ${JSON.stringify(def.url)} is still a placeholder; set the real address or set "enabled": false until the registration exists`)
+      } else {
+        let url: URL | undefined
+        try {
+          url = new URL(def.url)
+        } catch {
+          problems.push(`${tag}: url ${JSON.stringify(def.url)} is not a valid URL`)
+        }
+        if (url && LOOPBACK.test(url.hostname)) problems.push(`${tag}: url points at a loopback address (${url.hostname}); it would only work on one machine`)
+        else if (url && url.protocol !== "https:") problems.push(`${tag}: url must use https so credentials and data are encrypted in transit`)
+      }
+      const clientId = isDict(def.oauth) ? def.oauth.clientId : undefined
+      if (typeof clientId === "string" && PLACEHOLDER.test(clientId)) problems.push(`${tag}: oauth clientId is still a placeholder`)
+    } else if (def.type === "local") {
+      const command = Array.isArray(def.command) ? def.command.map(String) : []
+      const runner = (command[0] ?? "").split("/").pop() ?? ""
+      if (["npx", "pnpx", "bunx", "uvx"].includes(runner)) {
+        const spec = command.slice(1).find((arg) => !arg.startsWith("-"))
+        if (spec && !pinned(spec)) problems.push(`${tag}: package "${spec}" is not pinned; add an exact version (@1.2.3 or ==1.2.3) so machines do not change behaviour overnight`)
+      }
+    } else {
+      problems.push(`${tag}: type must be "remote" or "local"`)
+    }
+
+    // The app's default permission is "*": "allow", so nothing asks unless a rule says so. The last matching rule wins.
+    const prefix = toolPrefix(name)
+    const ask = prefix + "*"
+    if (permission[ask] !== "ask") {
+      problems.push(`${tag}: permission needs ${JSON.stringify(ask)}: "ask"; the app allows every tool by default, so this connector would write without asking`)
+      continue
+    }
+    const askAt = keys.indexOf(ask)
+    keys.forEach((key, at) => {
+      if (permission[key] !== "allow") return
+      const covers = key === "*" || (key.endsWith("*") && ask.startsWith(key.slice(0, -1)))
+      if (covers && at > askAt) problems.push(`${tag}: rule ${JSON.stringify(key)}: "allow" allows every tool and comes after the ask rule, cancelling it`)
+      else if (key.startsWith(prefix) && key !== ask && at < askAt) problems.push(`${tag}: read-only allow rule ${JSON.stringify(key)} comes before the ask rule, which would cancel it (the last matching rule wins)`)
+    })
+  }
+}
+
 export function lintManagedConfig(text: string): string[] {
   let config: unknown
   try {
@@ -118,6 +187,7 @@ export function lintManagedConfig(text: string): string[] {
       problems.push(`provider "${id}": whitelist [${whitelist.join(", ")}] does not match the defined models [${models.join(", ")}]`)
     }
   }
+  connectorProblems(config, problems)
   secretProblems(config, "config", problems)
 
   // Defaults must point at something that exists.

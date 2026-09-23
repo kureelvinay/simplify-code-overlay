@@ -64,7 +64,27 @@
     ]
   },
 
-  // 6. Required plugins that cannot ship inside the app. The app installs them on every machine from
+  // 6. Connectors: MCP servers the developer signs in to as themselves (OAuth), shown in the "+" menu under the
+  //    chat box. Only connectors that need nothing from SimplifyX IT are here; the others wait in
+  //    connectors.pending.jsonc, because even a disabled entry would appear in the menu and fail when switched on.
+  //    Atlassian (Jira, Confluence, Jira Service Management, Bitbucket) registers clients automatically.
+  //    Slack needs a workspace admin to approve the app the first time someone signs in.
+  "mcp": {
+    "atlassian": { "type": "remote", "url": "https://mcp.atlassian.com/v2/mcp", "enabled": true },
+    "slack": { "type": "remote", "url": "https://mcp.slack.com/mcp", "enabled": true }
+  },
+
+  // 7. Connector tools ask before they run. The app's own default is to ALLOW every tool, so without these lines a
+  //    connector could create tickets or post messages unprompted. The last matching rule wins: to let one connector's
+  //    read-only tools run without asking, add e.g. "atlassian_search*": "allow" AFTER its ask line, never before.
+  //    Tool names are <connector>_<tool>. Fetched tickets, mail and chat are untrusted text that a model reads while
+  //    holding file and shell tools, which is why writes ask.
+  "permission": {
+    "atlassian_*": "ask",
+    "slack_*": "ask"
+  },
+
+  // 8. Required plugins that cannot ship inside the app. The app installs them on every machine from
   //    npm (which must be reachable on first launch) and merges this list with the developer's own, so
   //    nobody can remove one. Everything else ships in team/ next to this file: the Entra sign-in and
   //    CISO session plugins in team/plugins/, superpowers and impeccable under team/vendor/ and
