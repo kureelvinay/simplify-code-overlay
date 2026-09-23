@@ -111,6 +111,7 @@ describe("the team bundle is its own release, versioned by date because it chang
     expect(notes).toContain("install-team.ps1")
     expect(notes).toContain("administrator")
     expect(notes).toContain("plugin-lock")
+    expect(notes).toContain("--connector-lock")
     expect(notes).toContain("gh release download team-2026-09-22 --repo o/r")
     expect(notes).toContain("placeholder")
   })

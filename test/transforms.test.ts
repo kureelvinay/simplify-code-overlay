@@ -109,8 +109,8 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and sixty-two entries: eighty-five file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(162)
+  test("has one hundred and sixty-four entries: eighty-five file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(164)
     expect(UPSTREAM_FILES).toHaveLength(85)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
@@ -678,6 +678,23 @@ describe("company-controlled team folder and plugin lock", () => {
     const index = read("packages/opencode/src/index.ts")
     expect(index).toContain("await ConfigManaged.prepareBundledCompanySet()")
     expect(index.indexOf("await ConfigManaged.prepareBundledCompanySet()")).toBeLessThan(index.indexOf("const cli = yargs(args)"))
+  })
+
+  test("connector lock: administrator-declared connectors are collected while merging, then REPLACE whatever else was merged", () => {
+    const m = managed()
+    expect(m).toContain("export function mcpLockEnabled() {")
+    expect(m).toContain('companyDirs().some((dir) => existsSync(path.join(dir, "mcp-lock")))')
+    const text = config()
+    expect(text).toContain("const adminMcp: Record<string, any> = {}")
+    // deep-merged among administrator sources, so a hot-fix in the administrator folder can adjust a bundled connector
+    expect(text).toContain("if (next.mcp && ConfigManaged.isAdminSource(source))")
+    expect(text).toContain("adminMcp[name] = mergeDeep((adminMcp[name] ?? {}) as any, def as any)")
+    const lock = text.indexOf("if (ConfigManaged.mcpLockEnabled()) {")
+    expect(lock).toBeGreaterThan(text.indexOf("const managed = yield* Effect.promise(() => ConfigManaged.readManagedPreferences())")) // after every source
+    expect(lock).toBeLessThan(text.indexOf("for (const [name, mode] of Object.entries(result.mode ?? {})) {"))
+    // replace, not merge: a developer cannot add fields (a different url, headers) to an administrator's connector
+    expect(text).toContain("result.mcp = adminMcp")
+    expect(text).toContain('"connector lock: ignoring connectors not declared by an administrator"')
   })
 
   test("isAdminSource: managed folders, the team folder and MDM count; a developer's own files do not", () => {

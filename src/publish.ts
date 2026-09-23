@@ -154,7 +154,7 @@ Windows, in an elevated PowerShell:
 powershell -ExecutionPolicy Bypass -File .\\install-team.ps1
 \`\`\`
 
-Add \`--plugin-lock\` (or \`-PluginLock\`) to create the \`plugin-lock\` marker: ${name} then ignores any plugin an administrator did not declare. Re-running updates everything and replaces the team folder wholesale.
+Add \`--plugin-lock\` (or \`-PluginLock\`) to create the \`plugin-lock\` marker: ${name} then ignores any plugin an administrator did not declare. Add \`--connector-lock\` (or \`-ConnectorLock\`) for the same with connectors (Jira, Slack and the other MCP servers). Re-running updates everything and replaces the team folder wholesale.
 
 **This repository is private**: \`gh release download ${tag} --repo ${repo}\`.
 

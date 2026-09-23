@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { $ } from "bun"
 import { loadBrand } from "../src/brand"
-import { installTeamPs1, installTeamSh, PLUGIN_LOCK_SOURCE, stageCompanySet, teamInstallGuide, TEAM_DIR, writeTeamBundle } from "../src/team-bundle"
+import { installTeamPs1, installTeamSh, MCP_LOCK_SOURCE, PLUGIN_LOCK_SOURCE, stageCompanySet, teamInstallGuide, TEAM_DIR, writeTeamBundle } from "../src/team-bundle"
 
 const brand = loadBrand()
 
@@ -75,6 +75,9 @@ describe("installTeamSh", () => {
     expect(script).toContain("--plugin-lock")
     expect(script).toContain('touch "$ROOT/plugin-lock"')
     expect(script).toContain('rm -f "$ROOT/plugin-lock"')
+    expect(script).toContain("--connector-lock")
+    expect(script).toContain('touch "$ROOT/mcp-lock"')
+    expect(script).toContain('rm -f "$ROOT/mcp-lock"')
   })
 
   test("replaces the team folder wholesale, so a removed skill really disappears, but never touches developers' homes", () => {
@@ -88,16 +91,18 @@ describe("installTeamSh", () => {
     const bundle = path.join(dir, "bundle")
     await writeTeamBundle(bundle, brand, "2026-09-22", { installPlugins: false })
     const root = path.join(dir, "root")
-    const r = await $`sh ${path.join(bundle, "install-team.sh")} --plugin-lock`.env({ ...process.env, SIMPLIFY_CODE_TEAM_ROOT: root }).quiet().nothrow()
+    const r = await $`sh ${path.join(bundle, "install-team.sh")} --plugin-lock --connector-lock`.env({ ...process.env, SIMPLIFY_CODE_TEAM_ROOT: root }).quiet().nothrow()
     expect(r.exitCode).toBe(0)
     expect(existsSync(path.join(root, "simplify-code.jsonc"))).toBe(true)
     expect(existsSync(path.join(root, "team", "agents", "code-reviewer.md"))).toBe(true)
     expect(existsSync(path.join(root, "team", "plugins", "ciso-session.js"))).toBe(true)
     expect(existsSync(path.join(root, "plugin-lock"))).toBe(true)
-    // a second run without the flag removes the lock and leaves everything else in place
+    expect(existsSync(path.join(root, "mcp-lock"))).toBe(true)
+    // a second run without the flags removes both locks and leaves everything else in place
     const again = await $`sh ${path.join(bundle, "install-team.sh")}`.env({ ...process.env, SIMPLIFY_CODE_TEAM_ROOT: root }).quiet().nothrow()
     expect(again.exitCode).toBe(0)
     expect(existsSync(path.join(root, "plugin-lock"))).toBe(false)
+    expect(existsSync(path.join(root, "mcp-lock"))).toBe(false)
     expect(existsSync(path.join(root, "team", "skills"))).toBe(true)
     rmSync(dir, { recursive: true, force: true })
   }, 60_000)
@@ -113,6 +118,8 @@ describe("installTeamPs1", () => {
     expect(script).toContain("simplify-code")
     expect(script).toContain("icacls")
     expect(script).toContain("-PluginLock")
+    expect(script).toContain("-ConnectorLock")
+    expect(script).toContain("mcp-lock")
   })
 })
 
@@ -153,6 +160,9 @@ describe("stageCompanySet: what the desktop app ships inside itself", () => {
     // the lock ships whenever the repo carries the marker; the user chose the lock for the pilot
     expect(existsSync(PLUGIN_LOCK_SOURCE)).toBe(true)
     expect(existsSync(path.join(out, "plugin-lock"))).toBe(true)
+    // and the connector lock, so developers can neither add nor alter connectors
+    expect(existsSync(MCP_LOCK_SOURCE)).toBe(true)
+    expect(existsSync(path.join(out, "mcp-lock"))).toBe(true)
     expect(existsSync(path.join(out, "team", ".DS_Store"))).toBe(false)
     rmSync(path.dirname(out), { recursive: true, force: true })
   })

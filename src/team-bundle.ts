@@ -16,6 +16,8 @@ export const TEAM_DIR = fileURLToPath(new URL("../team/", import.meta.url))
 const MANAGED_SOURCE = fileURLToPath(new URL("../managed/simplify-code.jsonc", import.meta.url))
 /** An empty marker file in the repo. While it exists, the shipped company set carries the plugin lock. */
 export const PLUGIN_LOCK_SOURCE = fileURLToPath(new URL("../managed/plugin-lock", import.meta.url))
+/** Likewise for connectors: while it exists, only administrator-declared connectors load. */
+export const MCP_LOCK_SOURCE = fileURLToPath(new URL("../managed/mcp-lock", import.meta.url))
 
 const slug = (brand: Brand) => placeholders(brand).productSlug
 const envVar = (brand: Brand) => `${slug(brand).toUpperCase().replace(/[^A-Z0-9]/g, "_")}_TEAM_ROOT`
@@ -26,10 +28,10 @@ export function installTeamSh(brand: Brand): string {
 # Installs the company-controlled ${brand.productName} configuration on this machine (macOS or Linux):
 # the enforced config and the shared team folder, owned by root, readable by everyone.
 #
-#   sudo sh install-team.sh [--plugin-lock]
+#   sudo sh install-team.sh [--plugin-lock] [--connector-lock]
 #
 # --plugin-lock: only plugins declared here load; plugins a developer adds to their own config are
-# ignored. Without the flag, a previous lock is removed.
+# ignored. --connector-lock: likewise for connectors (MCP servers). Without a flag, its previous lock is removed.
 # Developers' home folders are never touched. Re-run to update; the team folder is replaced wholesale.
 # ${envVar(brand)} overrides the destination, for testing without root.
 set -eu
@@ -44,7 +46,11 @@ else
   esac
 fi
 LOCK=no
-for arg in "$@"; do [ "$arg" = "--plugin-lock" ] && LOCK=yes; done
+MCPLOCK=no
+for arg in "$@"; do
+  [ "$arg" = "--plugin-lock" ] && LOCK=yes
+  [ "$arg" = "--connector-lock" ] && MCPLOCK=yes
+done
 for f in "${s}.jsonc" team.zip; do [ -f "$HERE/$f" ] || { echo "missing $HERE/$f" >&2; exit 1; }; done
 
 mkdir -p "$ROOT"
@@ -55,6 +61,7 @@ trap 'rm -rf "$TMP"' EXIT INT TERM
 unzip -q "$HERE/team.zip" -d "$TMP"
 mv "$TMP/team" "$ROOT/team"
 if [ "$LOCK" = yes ]; then touch "$ROOT/plugin-lock"; else rm -f "$ROOT/plugin-lock"; fi
+if [ "$MCPLOCK" = yes ]; then touch "$ROOT/mcp-lock"; else rm -f "$ROOT/mcp-lock"; fi
 
 if [ "$(id -u)" = "0" ]; then
   GROUP=$( [ "$(uname -s)" = Darwin ] && echo wheel || echo root )
@@ -66,6 +73,7 @@ echo "${brand.productName} team configuration installed in $ROOT"
 echo "  enforced config: $ROOT/${s}.jsonc"
 echo "  shared folder:   $ROOT/team"
 [ "$LOCK" = yes ] && echo "  plugin lock:     on (only administrator-declared plugins load)" || echo "  plugin lock:     off"
+[ "$MCPLOCK" = yes ] && echo "  connector lock:  on (only administrator-declared connectors load)" || echo "  connector lock:  off"
 echo "It takes effect the next time ${brand.productName} starts."
 `
 }
@@ -77,11 +85,12 @@ export function installTeamPs1(brand: Brand): string {
     `# Installs the company-controlled ${brand.productName} configuration on this PC: the enforced config and`,
     "# the shared team folder, under ProgramData, writable by Administrators only, readable by everyone.",
     "#",
-    "#   powershell -ExecutionPolicy Bypass -File .\\install-team.ps1 [-PluginLock]",
+    "#   powershell -ExecutionPolicy Bypass -File .\\install-team.ps1 [-PluginLock] [-ConnectorLock]",
     "#",
-    "# -PluginLock: only plugins declared here load. Without it, a previous lock is removed.",
+    "# -PluginLock: only plugins declared here load. -ConnectorLock: likewise for connectors (MCP servers).",
+    "# Without a switch, its previous lock is removed.",
     "# Developers' profiles are never touched. Re-run to update; the team folder is replaced wholesale.",
-    "param([switch]$PluginLock)",
+    "param([switch]$PluginLock, [switch]$ConnectorLock)",
     "$ErrorActionPreference = 'Stop'",
     `$root = Join-Path $env:ProgramData '${s}'`,
     "foreach ($f in @('" + s + ".jsonc', 'team.zip')) { if (-not (Test-Path (Join-Path $PSScriptRoot $f))) { throw \"missing $f next to this script\" } }",
@@ -92,12 +101,15 @@ export function installTeamPs1(brand: Brand): string {
     "Expand-Archive -Path (Join-Path $PSScriptRoot 'team.zip') -DestinationPath $root -Force",
     "$lock = Join-Path $root 'plugin-lock'",
     "if ($PluginLock) { New-Item -ItemType File -Force -Path $lock | Out-Null } elseif (Test-Path $lock) { Remove-Item $lock -Force }",
+    "$mcpLock = Join-Path $root 'mcp-lock'",
+    "if ($ConnectorLock) { New-Item -ItemType File -Force -Path $mcpLock | Out-Null } elseif (Test-Path $mcpLock) { Remove-Item $mcpLock -Force }",
     "# Administrators and SYSTEM: full control. Everyone else: read and execute only. Inherited permissions off.",
     "icacls $root /inheritance:r /grant:r 'Administrators:(OI)(CI)F' 'SYSTEM:(OI)(CI)F' 'Users:(OI)(CI)RX' | Out-Null",
     `Write-Host "${brand.productName} team configuration installed in $root"`,
     "Write-Host \"  enforced config: $root\\" + s + ".jsonc\"",
     "Write-Host \"  shared folder:   $root\\team\"",
     "if ($PluginLock) { Write-Host '  plugin lock:     on' } else { Write-Host '  plugin lock:     off' }",
+    "if ($ConnectorLock) { Write-Host '  connector lock:  on' } else { Write-Host '  connector lock:  off' }",
     `Write-Host "It takes effect the next time ${brand.productName} starts."`,
   ]
   return lines.join("\r\n") + "\r\n"
@@ -121,6 +133,7 @@ Inside it:
 - **\`${s}.jsonc\`**, the enforced config. Company gateway, the models developers may use, sharing off, self-update off, the required plugins. Loaded above every developer's own config; nothing in a home folder can override it.
 - **\`team/\`**, the shared folder: \`agents/\`, \`commands/\`, \`skills/\` and \`plugins/\` (the local plugin files with their dependencies). Loaded like a config folder, on every machine.
 - **\`plugin-lock\`** (optional), an empty marker file. While it exists, ${name} ignores any plugin that was not declared by an administrator, so developers cannot add their own.
+- **\`mcp-lock\`** (optional), the same for connectors (MCP servers): only administrator-declared connectors load, exactly as declared.
 
 Developers' home folders are **never touched**. \`~/.config/${s}/\` stays theirs for personal additions. The one thing each developer must provide is their own gateway key, at \`~/.config/simplifyx/gateway-key\`, readable only by them.
 
@@ -132,7 +145,7 @@ macOS and Linux, in the folder that holds these files:
 sudo sh install-team.sh
 \`\`\`
 
-Add \`--plugin-lock\` to forbid plugins that are not declared here.
+Add \`--plugin-lock\` to forbid plugins that are not declared here, and \`--connector-lock\` to forbid connectors that are not declared here.
 
 Windows, in an **elevated** PowerShell:
 
@@ -140,7 +153,7 @@ Windows, in an **elevated** PowerShell:
 powershell -ExecutionPolicy Bypass -File .\\install-team.ps1
 \`\`\`
 
-Add \`-PluginLock\` for the same effect. Re-running either script updates everything; the team folder is replaced wholesale, so a skill removed here is removed everywhere. Changes take effect the next time ${name} starts on that machine.
+Add \`-PluginLock\` and \`-ConnectorLock\` for the same effects. Re-running either script updates everything; the team folder is replaced wholesale, so a skill removed here is removed everywhere. Changes take effect the next time ${name} starts on that machine.
 
 ## Check a machine
 
@@ -182,6 +195,7 @@ export async function stageCompanySet(dest: string, brand: Brand, opts: { instal
   copyFileSync(MANAGED_SOURCE, path.join(dest, `${slug(brand)}.jsonc`))
   await stageTeam(path.join(dest, "team"), opts.installPlugins ?? true)
   if (existsSync(PLUGIN_LOCK_SOURCE)) writeFileSync(path.join(dest, "plugin-lock"), "")
+  if (existsSync(MCP_LOCK_SOURCE)) writeFileSync(path.join(dest, "mcp-lock"), "")
 }
 
 /** The team folder zipped as team/... for the administrator's bundle. */
