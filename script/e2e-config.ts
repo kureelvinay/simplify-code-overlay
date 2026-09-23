@@ -231,6 +231,23 @@ await check("the administrator folder overrides the bundled set, for hot-fixes w
   return expectEq("model", c.model, "admin/model") ?? expectEq("small_model kept from bundled", c.small_model, "bundled/small")
 })
 
+// The compiled terminal binary carries the company set itself (embedded at build time, extracted into the cache).
+await check("with no environment pointing anywhere, the binary's own embedded company set is in force", async (s) => {
+  const c = await s.resolved()
+  const out = path.join(s.root, "skills.json")
+  await $`sh -c ${`"${bin}" debug skill > "${out}" 2>/dev/null`}`.cwd(s.project).env({ ...process.env, XDG_CONFIG_HOME: s.config, XDG_CACHE_HOME: path.join(s.root, "cache"), XDG_DATA_HOME: path.join(s.root, "data"), OPENCODE_TEST_HOME: s.root, OPENCODE_TEST_MANAGED_CONFIG_DIR: path.join(s.root, "no-managed"), OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR: path.join(s.root, "no-brand-managed"), OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR: path.join(s.root, "no-team"), OPENCODE_DISABLE_AUTOUPDATE: "1" }).quiet().nothrow()
+  const raw = readFileSync(out, "utf8")
+  const skills = JSON.parse(raw.slice(raw.indexOf("["))) as { name: string; location: string }[]
+  const extracted = path.join(s.root, "cache", BRAND, "company")
+  const fromBundle = skills.filter((k) => k.location.startsWith(extracted))
+  return (
+    expectEq("share enforced by the embedded config", c.share, "disabled") ??
+    expectEq("impeccable from the embedded set", fromBundle.some((k) => k.name === "impeccable"), true) ??
+    expectEq("superpowers from the embedded set", fromBundle.some((k) => k.name === "brainstorming"), true) ??
+    expectEq("extracted once, with its completion marker", existsSync(path.join(extracted, readdirSync(extracted)[0] ?? "x", ".complete")), true)
+  )
+})
+
 const version = (await $`${bin} --version`.quiet().nothrow().text()).trim()
 console.log(`\nconfig names, end to end, against ${bin} ${version}\n`)
 for (const r of results) console.log(`  ${r.ok ? "PASS" : "FAIL"}  ${r.name}${r.ok ? "" : `\n        ${r.detail}`}`)

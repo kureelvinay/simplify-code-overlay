@@ -599,7 +599,7 @@ export const TRANSFORMS: Transform[] = [
     kind: "edit",
     file: "packages/opencode/src/config/managed.ts",
     find: "export function managedConfigDir() {\n  return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()\n}\n",
-    replace: "export function managedConfigDir() {\n  return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()\n}\n\n/** {{productName}}: the brand's own managed folder beside upstream's, read after it so it wins. */\nexport function brandManagedConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR || path.join(path.dirname(systemManagedConfigDir()), \"{{productSlug}}\")\n}\n\n/**\n * {{productName}}: the company set shipped INSIDE the desktop app (resources/company: the enforced config, the team\n * folder, an optional plugin-lock marker). The desktop main process points the server at it. Read as the\n * baseline, below the administrator folder, so one install gives every developer the same set and IT can\n * still override without a rebuild.\n */\nexport function bundledCompanyDir() {\n  return process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR || undefined\n}\n\n/** The folders whose config files are enforced, in merge order (later wins). */\nexport function managedConfigDirs() {\n  return [managedConfigDir(), bundledCompanyDir(), brandManagedConfigDir()].filter((dir): dir is string => !!dir && existsSync(dir))\n}\n\n/** The company folders an administrator or the build controls: bundled set, then the administrator folder. */\nfunction companyDirs() {\n  return [bundledCompanyDir(), brandManagedConfigDir()].filter((dir): dir is string => !!dir)\n}\n\n/**\n * {{productName}}: the company's shared agents, commands, skills, plugins and config. Inside the administrator\n * folder, so only an administrator can change it, yet read like any other config folder.\n */\nexport function brandTeamConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR || path.join(brandManagedConfigDir(), \"team\")\n}\n\n/** Every team folder to read, bundled first so the administrator's wins on conflicts; only those that exist. */\nexport function teamConfigDirs() {\n  const bundled = bundledCompanyDir()\n  return [...(bundled ? [path.join(bundled, \"team\")] : []), brandTeamConfigDir()].filter((dir) => existsSync(dir))\n}\n\nexport function isTeamConfigDir(dir: string) {\n  const bundled = bundledCompanyDir()\n  return dir === brandTeamConfigDir() || (!!bundled && dir === path.join(bundled, \"team\"))\n}\n\n/** {{productName}}: a marker file (in the bundled set or the administrator folder) that allows only administrator-declared plugins. */\nexport function pluginLockEnabled() {\n  return companyDirs().some((dir) => existsSync(path.join(dir, \"plugin-lock\")))\n}\n\n/** Whether a config source is one only the build or an administrator writes: a managed folder, a company folder or an MDM profile. */\nexport function isAdminSource(source: string) {\n  if (source.startsWith(\"mobileconfig:\")) return true\n  const within = (dir: string) => source === dir || source.startsWith(dir.endsWith(path.sep) ? dir : dir + path.sep)\n  return [managedConfigDir(), ...companyDirs()].some(within)\n}\n",
+    replace: "export function managedConfigDir() {\n  return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()\n}\n\n/** {{productName}}: the brand's own managed folder beside upstream's, read after it so it wins. */\nexport function brandManagedConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR || path.join(path.dirname(systemManagedConfigDir()), \"{{productSlug}}\")\n}\n\n/**\n * {{productName}}: the company set shipped INSIDE the desktop app (resources/company: the enforced config, the team\n * folder, an optional plugin-lock marker). The desktop main process points the server at it. Read as the\n * baseline, below the administrator folder, so one install gives every developer the same set and IT can\n * still override without a rebuild.\n */\nexport function bundledCompanyDir() {\n  return process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR || undefined\n}\n\n/** The folders whose config files are enforced, in merge order (later wins). */\nexport function managedConfigDirs() {\n  return [managedConfigDir(), bundledCompanyDir(), brandManagedConfigDir()].filter((dir): dir is string => !!dir && existsSync(dir))\n}\n\n/** The company folders an administrator or the build controls: bundled set, then the administrator folder. */\nfunction companyDirs() {\n  return [bundledCompanyDir(), brandManagedConfigDir()].filter((dir): dir is string => !!dir)\n}\n\n/**\n * {{productName}}: the company's shared agents, commands, skills, plugins and config. Inside the administrator\n * folder, so only an administrator can change it, yet read like any other config folder.\n */\nexport function brandTeamConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR || path.join(brandManagedConfigDir(), \"team\")\n}\n\n/** Every team folder to read, bundled first so the administrator's wins on conflicts; only those that exist. */\nexport function teamConfigDirs() {\n  const bundled = bundledCompanyDir()\n  return [...(bundled ? [path.join(bundled, \"team\")] : []), brandTeamConfigDir()].filter((dir) => existsSync(dir))\n}\n\nexport function isTeamConfigDir(dir: string) {\n  const bundled = bundledCompanyDir()\n  return dir === brandTeamConfigDir() || (!!bundled && dir === path.join(bundled, \"team\"))\n}\n\n/** {{productName}}: a marker file (in the bundled set or the administrator folder) that allows only administrator-declared plugins. */\nexport function pluginLockEnabled() {\n  return companyDirs().some((dir) => existsSync(path.join(dir, \"plugin-lock\")))\n}\n\n/** Whether a config source is one only the build or an administrator writes: a managed folder, a company folder or an MDM profile. */\nexport function isAdminSource(source: string) {\n  if (source.startsWith(\"mobileconfig:\")) return true\n  const within = (dir: string) => source === dir || source.startsWith(dir.endsWith(path.sep) ? dir : dir + path.sep)\n  return [managedConfigDir(), ...companyDirs()].some(within)\n}\n\n/**\n * {{productName}}: the compiled terminal binary carries the company set too (script/build.ts embeds packages/opencode/company\n * as the virtual module company-set.gen.ts, the way upstream embeds its web UI). Extract it once per content hash into\n * the cache and point the loader at it. Other builds have no such module and skip this.\n */\nexport async function prepareBundledCompanySet() {\n  if (process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR) return\n  // @ts-expect-error - virtual module provided by script/build.ts for the compiled binary only\n  const mod = await import(\"company-set.gen.ts\")\n    .then((m) => m as { default: Record<string, string>; hash: string })\n    .catch(() => null)\n  if (!mod || !mod.hash) return\n  const root = path.join(Global.Path.cache, \"company\")\n  const dir = path.join(root, mod.hash)\n  const marker = path.join(dir, \".complete\")\n  if (!existsSync(marker)) {\n    rmSync(dir, { recursive: true, force: true })\n    for (const [rel, embedded] of Object.entries(mod.default)) {\n      const target = path.join(dir, rel)\n      mkdirSync(path.dirname(target), { recursive: true })\n      writeFileSync(target, readFileSync(embedded))\n    }\n    writeFileSync(marker, mod.hash)\n    for (const entry of readdirSync(root)) if (entry !== mod.hash) rmSync(path.join(root, entry), { recursive: true, force: true })\n  }\n  process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR = dir\n}\n",
     count: 1,
   },
   {
@@ -758,6 +758,69 @@ export const TRANSFORMS: Transform[] = [
     file: `${DESKTOP}/electron-builder.config.ts`,
     find: '    {\n      from: "native/",\n      to: "native/",\n',
     replace: '    { from: "company/", to: "company/" },\n    {\n      from: "native/",\n      to: "native/",\n',
+    count: 1,
+  },
+
+  // 156-161. The terminal binary carries the company set too. build.ts embeds packages/opencode/company (staged by
+  // the pipeline) as a virtual module, exactly like upstream's web UI; managed.ts extracts it at start.
+  {
+    kind: "edit",
+    file: "packages/opencode/src/config/managed.ts",
+    find: 'import { existsSync } from "fs"\n',
+    replace: 'import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "fs"\nimport { Global } from "@opencode-ai/core/global"\n',
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/opencode/script/build.ts",
+    find: "const embeddedFileMap = skipEmbedWebUi ? null : await createEmbeddedWebUIBundle()\n",
+    replace:
+      "const embeddedFileMap = skipEmbedWebUi ? null : await createEmbeddedWebUIBundle()\n\n" +
+      "// {{productName}}: the company set (enforced config, team folder), staged by the overlay pipeline into ./company, travels\n" +
+      "// inside the binary the same way as the web UI. Absent folder: nothing embedded.\n" +
+      "const createEmbeddedCompanyBundle = async () => {\n" +
+      '  const company = path.join(dir, "company")\n' +
+      "  if (!(await Bun.file(path.join(company, \"{{productSlug}}.jsonc\")).exists())) return null\n" +
+      '  const files = (await Array.fromAsync(new Bun.Glob("**/*").scan({ cwd: company, dot: true })))\n' +
+      '    .map((file) => file.replaceAll("\\\\", "/"))\n' +
+      '    .filter((file) => !file.includes("/.bin/"))\n' +
+      "    .sort()\n" +
+      "  const hasher = new Bun.CryptoHasher(\"sha256\")\n" +
+      "  for (const file of files) hasher.update(file).update(await Bun.file(path.join(company, file)).arrayBuffer())\n" +
+      "  const imports = files.map((file, i) => `import file_${i} from ${JSON.stringify(`./company/${file}`)} with { type: \"file\" };`)\n" +
+      "  const entries = files.map((file, i) => `  ${JSON.stringify(file)}: file_${i},`)\n" +
+      "  return [...imports, `export const hash = ${JSON.stringify(hasher.digest(\"hex\").slice(0, 16))};`, `export default {`, ...entries, `}`].join(\"\\n\")\n" +
+      "}\n" +
+      "const embeddedCompanyMap = await createEmbeddedCompanyBundle()\n" +
+      "console.log(embeddedCompanyMap ? `Embedding the company set into the binary` : `No company set to embed`)\n",
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/opencode/script/build.ts",
+    find: '      ...(embeddedFileMap ? { "opencode-web-ui.gen.ts": embeddedFileMap } : {}),\n',
+    replace: '      ...(embeddedFileMap ? { "opencode-web-ui.gen.ts": embeddedFileMap } : {}),\n      ...(embeddedCompanyMap ? { "company-set.gen.ts": embeddedCompanyMap } : {}),\n',
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/opencode/script/build.ts",
+    find: '      ...(embeddedFileMap ? ["opencode-web-ui.gen.ts"] : []),\n',
+    replace: '      ...(embeddedFileMap ? ["opencode-web-ui.gen.ts"] : []),\n      ...(embeddedCompanyMap ? ["company-set.gen.ts"] : []),\n',
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/opencode/src/index.ts",
+    find: 'import { Heap } from "./cli/heap"\n',
+    replace: 'import { Heap } from "./cli/heap"\nimport { ConfigManaged } from "./config/managed"\n',
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/opencode/src/index.ts",
+    find: "const cli = yargs(args)\n",
+    replace: "// {{productName}}: the company set embedded in this binary becomes the config baseline (no-op in other builds)\nawait ConfigManaged.prepareBundledCompanySet()\n\nconst cli = yargs(args)\n",
     count: 1,
   },
 

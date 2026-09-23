@@ -208,6 +208,7 @@ It should print \`${version}\`. Then run \`${slug}\` inside a project folder. Pe
 - **Check the download.** \`SHA256SUMS\` lists the expected checksum of every archive. On macOS or Linux: \`shasum -a 256 -c SHA256SUMS\`. On Windows: \`Get-FileHash <file> -Algorithm SHA256\`.
 - **The Windows installer was generated on a Mac and has not been run on Windows by the people who built it.** If it misbehaves, unzip \`${slug}-windows-x64.zip\` by hand and put \`${slug}.exe\` anywhere on your PATH; that is all the script does.
 - **Updating** means installing a newer copy of this folder over the old one. \`${slug} upgrade\` looks for an internal package registry, which a hand-installed copy does not have.
+- **The company configuration is built into the program**: the enforced settings, the shared agents, commands, skills and plugins. Nothing else needs installing for them; they are the same set the desktop app carries.
 - This is the terminal version. The desktop app is packaged separately.
 
 ## What is in this folder
