@@ -64,12 +64,12 @@
     ]
   },
 
-  // 6. Required plugins. The app installs them on every machine (from GitHub and npm; both must be
-  //    reachable) and merges this list with the developer's own, so nobody can remove one. Git
-  //    plugins are pinned to a tag: a bare branch would change what every machine runs overnight.
-  //    To forbid plugins that are NOT in this list, create an empty file named "plugin-lock" next
-  //    to this one; Simplify Code then ignores plugins declared anywhere an administrator did not write.
-  //    Local plugin files (the Entra sign-in and CISO session plugins) live in team/plugins/ next to
-  //    this file, with their own node_modules, and are picked up from there.
-  "plugin": ["superpowers@git+https://github.com/obra/superpowers.git#v6.3.0", "@devtheops/opencode-plugin-otel"]
+  // 6. Required plugins that cannot ship inside the app. The app installs them on every machine from
+  //    npm (which must be reachable on first launch) and merges this list with the developer's own, so
+  //    nobody can remove one. Everything else ships in team/ next to this file: the Entra sign-in and
+  //    CISO session plugins in team/plugins/, superpowers and impeccable under team/vendor/ and
+  //    team/skills/. otel stays here because it is 357 MB of platform-specific native modules.
+  //    To forbid plugins that are NOT declared by an administrator, ship the "plugin-lock" marker
+  //    (managed/plugin-lock in the repo) next to this file.
+  "plugin": ["@devtheops/opencode-plugin-otel"]
 }
