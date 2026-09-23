@@ -181,28 +181,27 @@ describe("the shipped connectors", () => {
   const text = readFileSync(path.join(import.meta.dir, "../managed/simplify-code.jsonc"), "utf8")
   const config = parseJsonc(text) as any
 
-  test("Atlassian and Slack are enabled: their hosted servers need no per-app registration on our side", () => {
+  test("only Atlassian ships: it is the one hosted server verified against its real endpoint to register clients by itself", () => {
+    expect(Object.keys(config.mcp)).toEqual(["atlassian"])
     expect(config.mcp.atlassian).toEqual({ type: "remote", url: "https://mcp.atlassian.com/v2/mcp", enabled: true })
-    expect(config.mcp.slack).toEqual({ type: "remote", url: "https://mcp.slack.com/mcp", enabled: true })
   })
 
   test("each enabled connector asks before running any tool", () => {
     expect(config.permission["atlassian_*"]).toBe("ask")
-    expect(config.permission["slack_*"]).toBe("ask")
     // and the whole file still lints clean apart from the gateway placeholder
     expect(lintManagedConfig(text)).toHaveLength(1)
   })
 
   test("connectors that need an admin registration are NOT in the shipped config: a disabled entry would still show in the menu and fail when switched on", () => {
-    for (const pending of ["azure-devops", "salesforce", "servicenow", "outlook"]) expect(config.mcp[pending]).toBeUndefined()
+    for (const pending of ["slack", "azure-devops", "salesforce", "servicenow", "outlook"]) expect(config.mcp[pending]).toBeUndefined()
   })
 })
 
 describe("managed/connectors.pending.jsonc: templates for the connectors awaiting registration", () => {
   const templates = parseJsonc(readFileSync(path.join(import.meta.dir, "../managed/connectors.pending.jsonc"), "utf8")) as any
 
-  test("covers Azure DevOps, Salesforce, ServiceNow and Outlook, each disabled and each with the permission rule it will need", () => {
-    for (const name of ["azure-devops", "salesforce", "servicenow", "outlook"]) {
+  test("covers Slack, Azure DevOps, Salesforce, ServiceNow and Outlook, each disabled and each with the permission rule it will need", () => {
+    for (const name of ["slack", "azure-devops", "salesforce", "servicenow", "outlook"]) {
       expect(templates.mcp[name]).toBeDefined()
       expect(templates.mcp[name].enabled).toBe(false)
       expect(templates.permission[`${name}_*`]).toBe("ask")
@@ -211,9 +210,27 @@ describe("managed/connectors.pending.jsonc: templates for the connectors awaitin
 
   test("moving a template into the managed file with its placeholders filled in lints clean", () => {
     const filled = structuredClone(good) as any
-    filled.mcp["azure-devops"] = { ...templates.mcp["azure-devops"], url: "https://mcp.dev.azure.com/acme", enabled: true }
+    filled.mcp["azure-devops"] = {
+      ...templates.mcp["azure-devops"],
+      url: "https://mcp.dev.azure.com/acme",
+      oauth: { clientId: "00000000-0000-0000-0000-000000000000" },
+      enabled: true,
+    }
     filled.permission["azure-devops_*"] = templates.permission["azure-devops_*"]
     expect(lintManagedConfig(JSON.stringify(filled))).toEqual([])
+  })
+
+  test("Slack and Azure DevOps need a pre-registered app: their login servers do not offer automatic client registration", () => {
+    // found by asking the real endpoints: Slack answers "does not support dynamic client registration"
+    expect(templates.mcp.slack.oauth.clientId).toContain("REPLACE")
+    expect(templates.mcp["azure-devops"].oauth.clientId).toContain("REPLACE")
+  })
+
+  test("a filled-in address with the client id still a placeholder is rejected too", () => {
+    const half = structuredClone(good) as any
+    half.mcp.slack = { ...templates.mcp.slack, enabled: true }
+    half.permission["slack_*"] = "ask"
+    expect(lintManagedConfig(JSON.stringify(half)).some((p) => p.includes("clientId is still a placeholder"))).toBe(true)
   })
 
   test("un-filled, an enabled template is rejected, so nobody ships a placeholder by moving it and forgetting to edit", () => {

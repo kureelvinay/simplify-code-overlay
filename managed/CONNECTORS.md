@@ -22,8 +22,11 @@ never in the company set.
 
 | Connector | Server | Notes |
 |---|---|---|
-| `atlassian` | Atlassian's hosted server (Jira, Confluence, Jira Service Management, Bitbucket) | Clients register themselves; nothing to do on your side |
-| `slack` | Slack's hosted server | A workspace admin must approve the app when the first developer signs in |
+| `atlassian` | Atlassian's hosted server (Jira, Confluence, Jira Service Management, Bitbucket) | Clients register themselves; nothing to do on your side. Checked against the real endpoint: it answers "needs authentication", shown as a Sign in row |
+
+Slack is **not** shipped yet. Its login server does not support automatic client registration (the app reports
+"Incompatible auth server: does not support dynamic client registration" when it tries), so a shipped Slack row
+would show "failed" for everyone. It waits in `connectors.pending.jsonc` for a Slack app that IT registers.
 
 Every enabled connector has an `"<key>_*": "ask"` rule in the enforced config: **the app allows every tool by
 default**, so without that line a connector could create tickets or post messages without asking. The checker
@@ -51,7 +54,8 @@ not in the shipped config, because even a disabled entry would appear in the men
 
 | Connector | What your admin must do first |
 |---|---|
-| `azure-devops` | Have an Azure DevOps organisation backed by Microsoft Entra, and Entra that accepts dynamic client registration (or client-ID metadata documents). If it does not, use Microsoft's local server, which needs Node on the machine. Confirm the endpoint on Microsoft Learn. |
+| `slack` | Register a Slack app, allow the redirect URL `http://127.0.0.1:19876/mcp/oauth/callback`, put its client id in the connector, and have a workspace admin approve it. If Slack requires a client **secret**, do not put it in the config or the installer: anyone with the installer can read it. |
+| `azure-devops` | Have an Azure DevOps organisation backed by Microsoft Entra, and register an app in Entra (Entra does not offer automatic client registration); its client id goes in the connector. If that is not possible, use Microsoft's local server, which needs Node on the machine. Confirm the endpoint on Microsoft Learn. |
 | `salesforce` | Create an External Client App in the org and a hosted MCP server configuration linked to it. The server URL and the client id go in the connector. Per-user OAuth with PKCE. |
 | `servicenow` | Publish an MCP server in the MCP Server Console and create an OAuth inbound integration (authorization code grant is the only supported flow). The URL is specific to the instance. |
 | `outlook` | No first-party hosted server was found. The candidate is the community `ms-365-mcp-server` (runs locally through Microsoft Graph): needs Node on the machine, an Entra app registration and consent, a security review of third-party code that handles mail, and an exact version you have reviewed. |

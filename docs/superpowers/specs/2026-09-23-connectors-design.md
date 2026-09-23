@@ -64,8 +64,8 @@ Keys are short and stable because they prefix tool names: `atlassian`, `azure-de
 | Key | Server | Transport and auth | Needs from IT first |
 |---|---|---|---|
 | `atlassian` | Atlassian's official hosted server, `https://mcp.atlassian.com/v2/mcp` (Jira, Confluence, JSM, Bitbucket) | remote, OAuth 2.1 with dynamic client registration | nothing per app |
-| `azure-devops` | Microsoft's official hosted server (remote, GA) | remote, Microsoft Entra | Org backed by Entra; Entra must accept dynamic client registration or client-ID metadata documents, otherwise fall back to Microsoft's local server (`azure-devops-mcp` via `npx`) |
-| `slack` | Slack's official hosted server, `https://mcp.slack.com/mcp` | remote, OAuth | Workspace admin approves the app |
+| `azure-devops` | Microsoft's official hosted server (remote, GA) | remote, Microsoft Entra | Org backed by Entra; Entra does not offer automatic client registration, so an Entra app registered by IT and its client id in `oauth.clientId`; otherwise fall back to Microsoft's local server (`azure-devops-mcp` via `npx`). Ships pending |
+| `slack` | Slack's official hosted server, `https://mcp.slack.com/mcp` | remote, OAuth. **Verified against the real endpoint: its login server does not support automatic client registration** | A Slack app registered by IT and its client id in `oauth.clientId`; workspace admin approves it. Ships pending |
 | `salesforce` | Salesforce hosted MCP servers (GA) | remote, per-user OAuth with PKCE | Admin creates an External Client App per org; its client id goes in `oauth.clientId` |
 | `servicenow` | ServiceNow MCP Server Console | remote, per-user OAuth 2.0 authorization code | Admin configures an inbound integration; instance-specific URL |
 | `outlook` | **Undecided.** No first-party hosted server found. Community server `ms-365-mcp-server` (local, Microsoft Graph) is the candidate | local (`npx`, pinned version) | Entra app registration and consent; security review of third-party code that handles mail |
@@ -81,7 +81,7 @@ still appears in the menu with a switch, and switching it on would fail against 
 templates live in `managed/connectors.pending.jsonc` (with the permission rule each will need); shipping one
 means filling in the placeholders and moving its two blocks into `managed/simplify-code.jsonc`. The checker
 rejects a placeholder in an enabled connector, so a template cannot ship by accident. Shipped now: `atlassian`
-and `slack`. Pending: `azure-devops`, `salesforce`, `servicenow`, `outlook`.
+only. Pending: `slack`, `azure-devops`, `salesforce`, `servicenow`, `outlook`.
 
 ### 4.2 Sign-in
 
@@ -161,7 +161,9 @@ from the live connector state and the same toggle the `/mcp` dialog uses:
 1. **Phase 0, infrastructure** (no external system needed): the `mcp` config block with `enabled:false`
    placeholders, the linter rules, the connector lock, the permission scaffolding, the "+" menu, and an
    end-to-end fake connector.
-2. **Phase 1:** `atlassian`, `slack`, `azure-devops` enabled (least admin setup).
+2. **Phase 1:** `atlassian` enabled (done). `slack` and `azure-devops` were planned here as needing the least
+   admin setup, but checking the real endpoints showed both need a registered app and client id, so they wait
+   with the others for IT.
 3. **Phase 2:** `salesforce`, `servicenow` (each needs the admin registration first).
 4. **Phase 3:** `outlook`, after the decision between the community local server and waiting for an official one.
 
@@ -185,6 +187,10 @@ a security review of any third-party MCP server code. These set the real schedul
 
 ## 8. Risks and open items
 
+- **Automatic client registration is not universal.** Found only by connecting to the real servers: Atlassian
+  supports it, Slack does not, and Entra (Azure DevOps) does not either. The design's "no per-app registration"
+  claim held only for Atlassian. Probing each vendor's real endpoint before enabling it is now part of enabling a
+  connector.
 - **Azure DevOps and Entra:** dynamic client registration support may be missing; the fallback is the local
   server, which reintroduces a Node requirement on the VM for that one connector.
 - **Outlook** has no first-party hosted server in current research; phase 3 needs a decision.
