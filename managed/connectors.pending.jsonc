@@ -1,0 +1,72 @@
+// Connectors that are NOT shipped yet because each needs something only SimplifyX IT can provide.
+//
+// Why they are not in simplify-code.jsonc even as "enabled": false: a disabled connector still appears in the
+// app's "+" menu with a switch, and switching it on would fail against the placeholder address.
+//
+// To ship one: register the app or integration in the system (see docs/superpowers/specs/2026-09-23-connectors-design.md,
+// section 6), copy its two blocks below (under "mcp" and under "permission") into simplify-code.jsonc, replace every
+// placeholder, and set "enabled": true. `bun run script/check-managed.ts` refuses a placeholder in an enabled connector.
+{
+  "mcp": {
+    // Slack's hosted server. Its login server does NOT support automatic client registration (the app reports
+    // "Incompatible auth server: does not support dynamic client registration"), so IT must register a Slack app
+    // and its client id goes below. The redirect URL to allow on that app is http://127.0.0.1:19876/mcp/oauth/callback.
+    // If Slack requires a client SECRET for the app, do not put it in this file or the installer: anyone with the
+    // installer can read it. Stop and decide how to supply it per machine first. The workspace admin also approves the app.
+    "slack": {
+      "type": "remote",
+      "url": "https://mcp.slack.com/mcp",
+      "oauth": { "clientId": "REPLACE-WITH-SLACK-APP-CLIENT-ID" },
+      "enabled": false
+    },
+
+    // Microsoft's hosted server. Needs an Azure DevOps organisation backed by Microsoft Entra. Entra does not offer
+    // automatic client registration either, so register an app in Entra and put its client id below (the redirect
+    // URL to allow is http://127.0.0.1:19876/mcp/oauth/callback). If that is not possible, use Microsoft's local server:
+    //   { "type": "local", "command": ["npx", "-y", "@azure-devops/mcp@<exact version>", "<organisation>"], "enabled": true }
+    // Confirm the endpoint against Microsoft Learn ("Set up the remote Azure DevOps MCP Server") before enabling.
+    "azure-devops": {
+      "type": "remote",
+      "url": "https://mcp.dev.azure.com/REPLACE-WITH-YOUR-ORG",
+      "oauth": { "clientId": "REPLACE-WITH-ENTRA-APP-CLIENT-ID" },
+      "enabled": false
+    },
+
+    // Salesforce hosted MCP servers. An admin creates an External Client App in the org and a hosted MCP server
+    // configuration linked to it; the URL and client id come from there. Per-user OAuth with PKCE.
+    "salesforce": {
+      "type": "remote",
+      "url": "https://REPLACE-WITH-YOUR-SALESFORCE-MCP-SERVER-URL",
+      "oauth": { "clientId": "REPLACE-WITH-CLIENT-ID" },
+      "enabled": false
+    },
+
+    // ServiceNow MCP Server Console. An admin publishes an MCP server and creates an OAuth inbound integration
+    // (authorization code grant, the only supported flow). The URL is specific to the instance.
+    "servicenow": {
+      "type": "remote",
+      "url": "https://REPLACE-WITH-YOUR-INSTANCE.service-now.com/REPLACE-WITH-MCP-PATH",
+      "oauth": { "clientId": "REPLACE-WITH-CLIENT-ID" },
+      "enabled": false
+    },
+
+    // Outlook has no first-party hosted server in current research. The candidate is the community
+    // ms-365-mcp-server (local, Microsoft Graph), which needs Node on the machine, an Entra app registration and
+    // consent, and a security review of third-party code that handles mail. Pin an exact version you have reviewed.
+    "outlook": {
+      "type": "local",
+      "command": ["npx", "-y", "@softeria/ms-365-mcp-server@REPLACE-WITH-REVIEWED-VERSION"],
+      "enabled": false
+    }
+  },
+
+  // Every enabled connector must ask before running a tool: the app's own default is to allow.
+  // Add read-only allow rules AFTER the ask rule for that connector (the last matching rule wins).
+  "permission": {
+    "slack_*": "ask",
+    "azure-devops_*": "ask",
+    "salesforce_*": "ask",
+    "servicenow_*": "ask",
+    "outlook_*": "ask"
+  }
+}

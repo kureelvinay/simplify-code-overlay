@@ -15,6 +15,7 @@ import { tmpdir } from "node:os"
 import path from "node:path"
 import { $ } from "bun"
 import { loadBrand, placeholders } from "../src/brand"
+import { startFakeMcp } from "./fake-mcp"
 
 const bin = process.argv[2] ?? "simplify-code"
 const BRAND = placeholders(loadBrand()).productSlug
@@ -25,7 +26,7 @@ interface Sandbox {
   project: string
   write(file: string, value: unknown): void
   resolved(cwd?: string, env?: Record<string, string | undefined>): Promise<Record<string, any>>
-  run(args: string[], cwd?: string): Promise<string>
+  run(args: string[], cwd?: string, env?: Record<string, string | undefined>): Promise<string>
 }
 
 function sandbox(): Sandbox {
@@ -65,8 +66,8 @@ function sandbox(): Sandbox {
       const raw = readFileSync(out, "utf8")
       return JSON.parse(raw.slice(raw.indexOf("{")))
     },
-    async run(args, cwd = project) {
-      const r = await $`${bin} ${args}`.cwd(cwd).env(env()).quiet().nothrow()
+    async run(args, cwd = project, extra = {}) {
+      const r = await $`${bin} ${args}`.cwd(cwd).env(envClean(extra)).quiet().nothrow()
       return r.stdout.toString() + r.stderr.toString() // errors go to stderr
     },
   }
@@ -251,6 +252,69 @@ await check("with no environment pointing anywhere, the binary's own embedded co
     expectEq("extracted once, with its completion marker", existsSync(path.join(extracted, readdirSync(extracted)[0] ?? "x", ".complete")), true)
   )
 })
+
+// Connectors (MCP servers). The fake server has a read tool and a write tool; real vendor servers need real tenants.
+const fake = startFakeMcp()
+const plain = (text: string) => text.replace(/\u001b\[[0-9;]*m/g, "")
+const connectedIn = (listing: string, name: string) => new RegExp(`${name}\\s+connected`).test(plain(listing))
+const listedIn = (listing: string, name: string) => new RegExp(`\\s${name}\\s`).test(plain(listing))
+const company = (s: Sandbox, config: unknown, marker?: string) => {
+  const dir = path.join(s.root, "company")
+  s.write(path.join(dir, `${BRAND}.json`), config)
+  if (marker) s.write(path.join(dir, marker), "")
+  return { SIMPLIFY_CODE_BUNDLED_COMPANY_DIR: dir }
+}
+
+await check("a connector declared in the company set connects", async (s) => {
+  const env = company(s, { mcp: { fake: { type: "remote", url: fake.url, enabled: true } } })
+  return expectEq("fake connected", connectedIn(await s.run(["mcp", "list"], s.project, env), "fake"), true)
+})
+
+await check("without the connector lock, a developer can add a connector of their own", async (s) => {
+  const env = company(s, { mcp: { fake: { type: "remote", url: fake.url, enabled: true } } })
+  s.write(path.join(s.config, BRAND, `${BRAND}.json`), { mcp: { rogue: { type: "remote", url: fake.url, enabled: true } } })
+  const list = await s.run(["mcp", "list"], s.project, env)
+  return expectEq("fake", connectedIn(list, "fake"), true) ?? expectEq("rogue", connectedIn(list, "rogue"), true)
+})
+
+await check("with the connector lock, a developer's own connector is ignored and the company's still connects", async (s) => {
+  const env = company(s, { mcp: { fake: { type: "remote", url: fake.url, enabled: true } } }, "mcp-lock")
+  s.write(path.join(s.config, BRAND, `${BRAND}.json`), { mcp: { rogue: { type: "remote", url: fake.url, enabled: true } } })
+  const list = await s.run(["mcp", "list"], s.project, env)
+  return expectEq("fake", connectedIn(list, "fake"), true) ?? expectEq("rogue listed", listedIn(list, "rogue"), false)
+})
+
+await check("with the lock, a developer cannot re-point or add headers to a company connector: its definition replaces, not merges", async (s) => {
+  const declared = { mcp: { fake: { type: "remote", url: fake.url, enabled: true } } }
+  // a complete, valid connector of the same name, with a header and another address
+  s.write(path.join(s.config, BRAND, `${BRAND}.json`), { mcp: { fake: { type: "remote", url: "https://rogue.example/mcp", headers: { "X-Rogue": "1" }, enabled: true } } })
+  const locked = await s.resolved(s.project, company(s, declared, "mcp-lock"))
+  rmSync(path.join(s.root, "company", "mcp-lock"))
+  const open = await s.resolved(s.project, company(s, declared))
+  return (
+    expectEq("headers with the lock", locked.mcp?.fake?.headers, undefined) ??
+    expectEq("url with the lock is the company's", locked.mcp?.fake?.url, fake.url) ??
+    expectEq("headers without the lock (control)", open.mcp?.fake?.headers, { "X-Rogue": "1" })
+  )
+})
+
+await check("a developer cannot loosen a connector's ask rule, not even with a narrower allow written earlier", async (s) => {
+  const env = company(s, { mcp: { fake: { type: "remote", url: fake.url, enabled: true } }, permission: { "fake_*": "ask" } })
+  s.write(path.join(s.config, BRAND, `${BRAND}.json`), { permission: { "fake_*": "allow", "fake_search*": "allow" } })
+  const c = await s.resolved(s.project, env)
+  const keys = Object.keys(c.permission ?? {})
+  // the last matching rule wins: the company's ask must be the later one
+  return expectEq("fake_* is ask", c.permission?.["fake_*"], "ask") ?? expectEq("ask comes after the developer's narrower allow", keys.indexOf("fake_*") > keys.indexOf("fake_search*"), true)
+})
+
+await check("a connector that cannot be reached does not stop the app", async (s) => {
+  const env = company(s, { mcp: { dead: { type: "remote", url: "http://127.0.0.1:1/mcp", enabled: true, timeout: 3000 } } })
+  const list = plain(await s.run(["mcp", "list"], s.project, env))
+  const c = await s.resolved(s.project, env)
+  return expectEq("listed as failed", /dead\s+failed/.test(list), true) ?? expectEq("config still resolves", typeof c.username, "string")
+})
+
+fake.stop()
 
 const version = (await $`${bin} --version`.quiet().nothrow().text()).trim()
 console.log(`\nconfig names, end to end, against ${bin} ${version}\n`)

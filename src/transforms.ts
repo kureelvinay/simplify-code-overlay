@@ -599,7 +599,7 @@ export const TRANSFORMS: Transform[] = [
     kind: "edit",
     file: "packages/opencode/src/config/managed.ts",
     find: "export function managedConfigDir() {\n  return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()\n}\n",
-    replace: "export function managedConfigDir() {\n  return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()\n}\n\n/** {{productName}}: the brand's own managed folder beside upstream's, read after it so it wins. */\nexport function brandManagedConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR || path.join(path.dirname(systemManagedConfigDir()), \"{{productSlug}}\")\n}\n\n/**\n * {{productName}}: the company set shipped INSIDE the desktop app (resources/company: the enforced config, the team\n * folder, an optional plugin-lock marker). The desktop main process points the server at it. Read as the\n * baseline, below the administrator folder, so one install gives every developer the same set and IT can\n * still override without a rebuild.\n */\nexport function bundledCompanyDir() {\n  return process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR || undefined\n}\n\n/** The folders whose config files are enforced, in merge order (later wins). */\nexport function managedConfigDirs() {\n  return [managedConfigDir(), bundledCompanyDir(), brandManagedConfigDir()].filter((dir): dir is string => !!dir && existsSync(dir))\n}\n\n/** The company folders an administrator or the build controls: bundled set, then the administrator folder. */\nfunction companyDirs() {\n  return [bundledCompanyDir(), brandManagedConfigDir()].filter((dir): dir is string => !!dir)\n}\n\n/**\n * {{productName}}: the company's shared agents, commands, skills, plugins and config. Inside the administrator\n * folder, so only an administrator can change it, yet read like any other config folder.\n */\nexport function brandTeamConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR || path.join(brandManagedConfigDir(), \"team\")\n}\n\n/** Every team folder to read, bundled first so the administrator's wins on conflicts; only those that exist. */\nexport function teamConfigDirs() {\n  const bundled = bundledCompanyDir()\n  return [...(bundled ? [path.join(bundled, \"team\")] : []), brandTeamConfigDir()].filter((dir) => existsSync(dir))\n}\n\nexport function isTeamConfigDir(dir: string) {\n  const bundled = bundledCompanyDir()\n  return dir === brandTeamConfigDir() || (!!bundled && dir === path.join(bundled, \"team\"))\n}\n\n/** {{productName}}: a marker file (in the bundled set or the administrator folder) that allows only administrator-declared plugins. */\nexport function pluginLockEnabled() {\n  return companyDirs().some((dir) => existsSync(path.join(dir, \"plugin-lock\")))\n}\n\n/** Whether a config source is one only the build or an administrator writes: a managed folder, a company folder or an MDM profile. */\nexport function isAdminSource(source: string) {\n  if (source.startsWith(\"mobileconfig:\")) return true\n  const within = (dir: string) => source === dir || source.startsWith(dir.endsWith(path.sep) ? dir : dir + path.sep)\n  return [managedConfigDir(), ...companyDirs()].some(within)\n}\n\n/**\n * {{productName}}: the compiled terminal binary carries the company set too (script/build.ts embeds packages/opencode/company\n * as the virtual module company-set.gen.ts, the way upstream embeds its web UI). Extract it once per content hash into\n * the cache and point the loader at it. Other builds have no such module and skip this.\n */\nexport async function prepareBundledCompanySet() {\n  // already pointed somewhere by the desktop app, or explicitly switched off with an empty value (tests)\n  if (process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR !== undefined) return\n  // @ts-expect-error - virtual module provided by script/build.ts for the compiled binary only\n  const mod = await import(\"company-set.gen.ts\")\n    .then((m) => m as { default: Record<string, string>; hash: string })\n    .catch(() => null)\n  if (!mod || !mod.hash) return\n  const root = path.join(Global.Path.cache, \"company\")\n  const dir = path.join(root, mod.hash)\n  const marker = path.join(dir, \".complete\")\n  if (!existsSync(marker)) {\n    rmSync(dir, { recursive: true, force: true })\n    for (const [rel, embedded] of Object.entries(mod.default)) {\n      const target = path.join(dir, rel)\n      mkdirSync(path.dirname(target), { recursive: true })\n      writeFileSync(target, readFileSync(embedded))\n    }\n    writeFileSync(marker, mod.hash)\n    for (const entry of readdirSync(root)) if (entry !== mod.hash) rmSync(path.join(root, entry), { recursive: true, force: true })\n  }\n  process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR = dir\n}\n",
+    replace: "export function managedConfigDir() {\n  return process.env.OPENCODE_TEST_MANAGED_CONFIG_DIR || systemManagedConfigDir()\n}\n\n/** {{productName}}: the brand's own managed folder beside upstream's, read after it so it wins. */\nexport function brandManagedConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_MANAGED_CONFIG_DIR || path.join(path.dirname(systemManagedConfigDir()), \"{{productSlug}}\")\n}\n\n/**\n * {{productName}}: the company set shipped INSIDE the desktop app (resources/company: the enforced config, the team\n * folder, an optional plugin-lock marker). The desktop main process points the server at it. Read as the\n * baseline, below the administrator folder, so one install gives every developer the same set and IT can\n * still override without a rebuild.\n */\nexport function bundledCompanyDir() {\n  return process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR || undefined\n}\n\n/** The folders whose config files are enforced, in merge order (later wins). */\nexport function managedConfigDirs() {\n  return [managedConfigDir(), bundledCompanyDir(), brandManagedConfigDir()].filter((dir): dir is string => !!dir && existsSync(dir))\n}\n\n/** The company folders an administrator or the build controls: bundled set, then the administrator folder. */\nfunction companyDirs() {\n  return [bundledCompanyDir(), brandManagedConfigDir()].filter((dir): dir is string => !!dir)\n}\n\n/**\n * {{productName}}: the company's shared agents, commands, skills, plugins and config. Inside the administrator\n * folder, so only an administrator can change it, yet read like any other config folder.\n */\nexport function brandTeamConfigDir() {\n  return process.env.OPENCODE_TEST_BRAND_TEAM_CONFIG_DIR || path.join(brandManagedConfigDir(), \"team\")\n}\n\n/** Every team folder to read, bundled first so the administrator's wins on conflicts; only those that exist. */\nexport function teamConfigDirs() {\n  const bundled = bundledCompanyDir()\n  return [...(bundled ? [path.join(bundled, \"team\")] : []), brandTeamConfigDir()].filter((dir) => existsSync(dir))\n}\n\nexport function isTeamConfigDir(dir: string) {\n  const bundled = bundledCompanyDir()\n  return dir === brandTeamConfigDir() || (!!bundled && dir === path.join(bundled, \"team\"))\n}\n\n/** {{productName}}: a marker file (in the bundled set or the administrator folder) that allows only administrator-declared plugins. */\nexport function pluginLockEnabled() {\n  return companyDirs().some((dir) => existsSync(path.join(dir, \"plugin-lock\")))\n}\n\n/** {{productName}}: a marker file (in the bundled set or the administrator folder) that allows only administrator-declared connectors. */\nexport function mcpLockEnabled() {\n  return companyDirs().some((dir) => existsSync(path.join(dir, \"mcp-lock\")))\n}\n\n/** Whether a config source is one only the build or an administrator writes: a managed folder, a company folder or an MDM profile. */\nexport function isAdminSource(source: string) {\n  if (source.startsWith(\"mobileconfig:\")) return true\n  const within = (dir: string) => source === dir || source.startsWith(dir.endsWith(path.sep) ? dir : dir + path.sep)\n  return [managedConfigDir(), ...companyDirs()].some(within)\n}\n\n/**\n * {{productName}}: the compiled terminal binary carries the company set too (script/build.ts embeds packages/opencode/company\n * as the virtual module company-set.gen.ts, the way upstream embeds its web UI). Extract it once per content hash into\n * the cache and point the loader at it. Other builds have no such module and skip this.\n */\nexport async function prepareBundledCompanySet() {\n  // already pointed somewhere by the desktop app, or explicitly switched off with an empty value (tests)\n  if (process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR !== undefined) return\n  // @ts-expect-error - virtual module provided by script/build.ts for the compiled binary only\n  const mod = await import(\"company-set.gen.ts\")\n    .then((m) => m as { default: Record<string, string>; hash: string })\n    .catch(() => null)\n  if (!mod || !mod.hash) return\n  const root = path.join(Global.Path.cache, \"company\")\n  const dir = path.join(root, mod.hash)\n  const marker = path.join(dir, \".complete\")\n  if (!existsSync(marker)) {\n    rmSync(dir, { recursive: true, force: true })\n    for (const [rel, embedded] of Object.entries(mod.default)) {\n      const target = path.join(dir, rel)\n      mkdirSync(path.dirname(target), { recursive: true })\n      writeFileSync(target, readFileSync(embedded))\n    }\n    writeFileSync(marker, mod.hash)\n    for (const entry of readdirSync(root)) if (entry !== mod.hash) rmSync(path.join(root, entry), { recursive: true, force: true })\n  }\n  process.env.SIMPLIFY_CODE_BUNDLED_COMPANY_DIR = dir\n}\n",
     count: 1,
   },
   {
@@ -828,6 +828,184 @@ export const TRANSFORMS: Transform[] = [
     file: "packages/opencode/src/index.ts",
     find: "const cli = yargs(args)\n",
     replace: "// {{productName}}: the company set embedded in this binary becomes the config baseline (no-op in other builds)\nawait ConfigManaged.prepareBundledCompanySet()\n\nconst cli = yargs(args)\n",
+    count: 1,
+  },
+
+  // 163. Connector lock, part 1: while merging, remember which connectors (config key `mcp`) an administrator declared.
+  // Deep-merged among administrator sources so a hot-fix in the administrator folder can adjust a bundled connector.
+  {
+    kind: "edit",
+    file: "packages/opencode/src/config/config.ts",
+    find: "        const merge = (source: string, next: Info, kind?: ConfigPlugin.Scope) => {\n          result = mergeConfigConcatArrays(result, next)\n          return mergePluginOrigins(source, next.plugin, kind)\n        }\n",
+    replace:
+      "        // {{productName}}: connectors declared by an administrator source, for the connector lock below\n" +
+      "        const adminMcp: Record<string, any> = {}\n" +
+      "        // ...and the permission rules an administrator declared: they are re-applied last, below\n" +
+      "        const adminPermission: Record<string, any> = {}\n" +
+      "        const merge = (source: string, next: Info, kind?: ConfigPlugin.Scope) => {\n" +
+      "          result = mergeConfigConcatArrays(result, next)\n" +
+      "          if (next.mcp && ConfigManaged.isAdminSource(source)) {\n" +
+      "            for (const [name, def] of Object.entries(next.mcp)) adminMcp[name] = mergeDeep((adminMcp[name] ?? {}) as any, def as any)\n" +
+      "          }\n" +
+      "          if (isRecord(next.permission) && ConfigManaged.isAdminSource(source)) {\n" +
+      "            for (const [key, value] of Object.entries(next.permission)) {\n" +
+      "              adminPermission[key] = isRecord(value) ? mergeDeep((adminPermission[key] ?? {}) as any, value as any) : value\n" +
+      "            }\n" +
+      "          }\n" +
+      "          return mergePluginOrigins(source, next.plugin, kind)\n" +
+      "        }\n",
+    count: 1,
+  },
+  // 164. Connector lock, part 2: after every source has merged, only administrator-declared connectors remain, and
+  // their definitions REPLACE whatever else was merged, so a developer cannot add a url or headers to one.
+  {
+    kind: "edit",
+    file: "packages/opencode/src/config/config.ts",
+    find: "        for (const [name, mode] of Object.entries(result.mode ?? {})) {\n          result.agent = mergeDeep(result.agent ?? {}, {\n",
+    replace:
+      "        // {{productName}}: the last matching permission rule wins, and a key that exists in both a developer's file and an\n" +
+      "        // administrator's keeps the developer's EARLIER position, so a narrower allow written after it would beat the\n" +
+      "        // administrator's ask. Re-append the administrator's rules so they are always the last.\n" +
+      "        if (isRecord(result.permission)) {\n" +
+      "          for (const [key, value] of Object.entries(adminPermission)) {\n" +
+      "            delete result.permission[key]\n" +
+      "            result.permission[key] = value\n" +
+      "          }\n" +
+      "        }\n\n" +
+      "        // {{productName}}: with the mcp-lock marker, only administrator-declared connectors load, exactly as declared.\n" +
+      "        if (ConfigManaged.mcpLockEnabled()) {\n" +
+      "          const dropped = Object.keys(result.mcp ?? {}).filter((name) => !(name in adminMcp))\n" +
+      "          if (dropped.length) yield* Effect.logWarning(\"connector lock: ignoring connectors not declared by an administrator\", { dropped })\n" +
+      "          result.mcp = adminMcp\n" +
+      "        }\n\n" +
+      "        for (const [name, mode] of Object.entries(result.mode ?? {})) {\n          result.agent = mergeDeep(result.agent ?? {}, {\n",
+    count: 1,
+  },
+
+  // 165-172. The "+" menu under the chat box lists the company connectors (MCP servers), like Claude's. The add menu is a
+  // generic component in session-ui with no access to app state, so it takes an optional list; the app composer builds it
+  // from the live connector state and the same toggle the /mcp dialog uses (which starts OAuth sign-in when needed).
+  {
+    kind: "edit",
+    file: "packages/session-ui/src/v2/components/prompt-input/index.tsx",
+    find: "  attachKeybind?: string[]\n  attachShortcut?: string\n}\n\nexport function PromptInputV2(props: PromptInputV2Props) {\n",
+    replace:
+      "  attachKeybind?: string[]\n  attachShortcut?: string\n  /** {{productName}}: the company connectors, listed in the add menu. Supplied by the app; absent means no group. */\n  connectors?: PromptInputV2Connectors\n}\n\n" +
+      "/** {{productName}}: one connector (an MCP server) as the add menu shows it. */\n" +
+      "export interface PromptInputV2ConnectorItem {\n  id: string\n  name: string\n  /** connected, disabled, pending, failed, needs_auth or needs_client_registration */\n  status: string\n}\n\n" +
+      "export interface PromptInputV2Connectors {\n  label: string\n  items: () => PromptInputV2ConnectorItem[]\n  statusLabel: (status: string) => string | undefined\n  onToggle: (id: string) => void\n}\n\n" +
+      "export function PromptInputV2(props: PromptInputV2Props) {\n",
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/session-ui/src/v2/components/prompt-input/index.tsx",
+    find: "              onShell={props.controller.openShell}\n            />\n",
+    replace: "              onShell={props.controller.openShell}\n              connectors={props.connectors}\n            />\n",
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/session-ui/src/v2/components/prompt-input/index.tsx",
+    find: "  onContext: () => void\n  onShell: () => void\n}) {\n",
+    replace: "  onContext: () => void\n  onShell: () => void\n  connectors?: PromptInputV2Connectors\n}) {\n",
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/session-ui/src/v2/components/prompt-input/index.tsx",
+    find: '            <MenuV2.Item onSelect={props.onShell} shortcut="!">\n              {props.shellLabel}\n            </MenuV2.Item>\n',
+    replace:
+      '            <MenuV2.Item onSelect={props.onShell} shortcut="!">\n              {props.shellLabel}\n            </MenuV2.Item>\n' +
+      "            {/* {{productName}}: company connectors. Connected and switched-off ones are checkbox rows; the rest (sign in, failed) are plain rows with a badge. */}\n" +
+      "            <Show when={(props.connectors?.items().length ?? 0) > 0}>\n" +
+      "              <MenuV2.Separator />\n" +
+      "              <MenuV2.Group>\n" +
+      "                <MenuV2.GroupLabel>{props.connectors!.label}</MenuV2.GroupLabel>\n" +
+      "                <For each={props.connectors!.items()}>\n" +
+      "                  {(item) => (\n" +
+      "                    <Show\n" +
+      '                      when={item.status === "connected" || item.status === "disabled"}\n' +
+      "                      fallback={\n" +
+      "                        <MenuV2.Item\n" +
+      "                          data-connector={item.id}\n" +
+      "                          data-status={item.status}\n" +
+      '                          disabled={item.status === "pending" || item.status === "unavailable"}\n' +
+      "                          badge={props.connectors!.statusLabel(item.status)}\n" +
+      "                          onSelect={() => props.connectors!.onToggle(item.id)}\n" +
+      "                        >\n" +
+      "                          {item.name}\n" +
+      "                        </MenuV2.Item>\n" +
+      "                      }\n" +
+      "                    >\n" +
+      "                      <MenuV2.CheckboxItem\n" +
+      "                        data-connector={item.id}\n" +
+      "                        data-status={item.status}\n" +
+      '                        checked={item.status === "connected"}\n' +
+      "                        onChange={() => props.connectors!.onToggle(item.id)}\n" +
+      "                      >\n" +
+      "                        {item.name}\n" +
+      "                      </MenuV2.CheckboxItem>\n" +
+      "                    </Show>\n" +
+      "                  )}\n" +
+      "                </For>\n" +
+      "              </MenuV2.Group>\n" +
+      "            </Show>\n",
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/app/src/components/prompt-input-v2.tsx",
+    find: 'import { useSync } from "@/context/sync"\n',
+    replace: 'import { useSync } from "@/context/sync"\nimport { useMcpToggle } from "@/context/mcp"\n',
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/app/src/components/prompt-input-v2.tsx",
+    find: "export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {\n  const dialog = useDialog()\n  const command = useCommand()\n  const language = useLanguage()\n",
+    replace:
+      "export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {\n  const dialog = useDialog()\n  const command = useCommand()\n  const language = useLanguage()\n\n" +
+      "  // {{productName}}: the connector catalog for the \"+\" menu. Every known connector is listed, whether or not\n" +
+      "  // the company has shipped it yet, so developers can see what is coming; live status comes from the /mcp state.\n" +
+      "  const connectorSync = useSync()\n" +
+      "  const connectorToggle = useMcpToggle()\n" +
+      "  const CONNECTOR_CATALOG: Record<string, string> = {\n" +
+      '    atlassian: "Atlassian (Jira, Confluence)",\n    slack: "Slack",\n    "azure-devops": "Azure DevOps",\n    salesforce: "Salesforce",\n    servicenow: "ServiceNow",\n    outlook: "Outlook",\n  }\n' +
+      "  const connectorName = (id: string) =>\n" +
+      '    CONNECTOR_CATALOG[id] ?? id.split(/[-_]/).filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1)).join(" ")\n' +
+      "  const connectorStatusKeys: Record<string, string> = {\n" +
+      '    connected: "mcp.status.connected",\n    failed: "mcp.status.failed",\n    needs_auth: "mcp.status.needs_auth",\n    needs_client_registration: "mcp.status.needs_client_registration",\n    disabled: "mcp.status.disabled",\n    unavailable: "prompt.action.connectors.unavailable",\n  }\n' +
+      '  const connectorStatus = (id: string) => connectorSync().data.mcp?.[id]?.status ?? "unavailable"\n' +
+      "  const connectors = {\n" +
+      '    label: language.t("prompt.action.connectors"),\n' +
+      "    items: () => {\n" +
+      "      const liveMcp = connectorSync().data.mcp ?? {}\n" +
+      "      const ids = new Set([...Object.keys(CONNECTOR_CATALOG), ...Object.keys(liveMcp)])\n" +
+      "      return [...ids]\n" +
+      "        .map((id) => ({ id, name: connectorName(id), status: connectorStatus(id) }))\n" +
+      "        .sort((a, b) => a.name.localeCompare(b.name))\n" +
+      "    },\n" +
+      "    statusLabel: (status: string) => (connectorStatusKeys[status] ? language.t(connectorStatusKeys[status] as never) : undefined),\n" +
+      "    onToggle: (id: string) => {\n" +
+      '      if (connectorStatus(id) === "unavailable") return\n' +
+      "      if (!connectorToggle.isPending) connectorToggle.mutate(id)\n" +
+      "    },\n" +
+      "  }\n",
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/app/src/components/prompt-input-v2.tsx",
+    find: '        attachShortcut={command.keybind("file.attach")}\n',
+    replace: '        attachShortcut={command.keybind("file.attach")}\n        connectors={connectors}\n',
+    count: 1,
+  },
+  {
+    kind: "edit",
+    file: "packages/app/src/i18n/en.ts",
+    find: '  "prompt.action.attachFile": "Add files",\n',
+    replace: '  "prompt.action.attachFile": "Add files",\n  "prompt.action.connectors": "Connectors",\n  "prompt.action.connectors.unavailable": "Not enabled yet",\n',
     count: 1,
   },
 

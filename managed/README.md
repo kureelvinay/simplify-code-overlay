@@ -13,6 +13,7 @@ A managed file loads **above** a developer's own `~/.config/opencode/opencode.js
 | `share: "disabled"` | `/share` would upload conversations to opencode.ai; off |
 | `autoupdate: false` | New versions come from the rebrand pipeline, never from self-update |
 | `enabled_providers` | **The provider lock that works today.** Only the gateway is usable, even if a developer adds another provider or already has another service's API key |
+| `mcp`, connector `permission` rules | The company's connectors (Jira/Confluence now; Slack, Azure DevOps, Salesforce, ServiceNow, Outlook pending), each **asking** before a tool runs because the app allows by default. See `CONNECTORS.md` |
 | `experimental.policies` | The same lock in upstream's newer form, kept so it survives the release where upstream switches over |
 
 ### Why the provider lock has two parts
