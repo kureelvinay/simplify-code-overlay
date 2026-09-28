@@ -823,7 +823,7 @@ describe("the + menu lists the company connectors", () => {
     // connected and switched-off connectors are checkbox rows; the rest (sign in, failed, pending) are plain rows with a badge
     expect(m).toContain('when={item.status === "connected" || item.status === "disabled"}')
     expect(m).toContain('checked={item.status === "connected"}')
-    expect(m).toContain('disabled={item.status === "pending"}')
+    expect(m).toContain('disabled={item.status === "pending" || item.status === "unavailable"}')
     expect(m).toContain("badge={props.connectors!.statusLabel(item.status)}")
     expect(m).toContain("data-connector={item.id}")
     // placed after the Shell entry, inside the same menu
@@ -834,7 +834,7 @@ describe("the + menu lists the company connectors", () => {
     const c = composer()
     expect(c).toContain('import { useMcpToggle } from "@/context/mcp"')
     expect(c).toContain("const connectorToggle = useMcpToggle()")
-    expect(c).toContain("Object.entries(connectorSync().data.mcp ?? {})")
+    expect(c).toContain("connectorSync().data.mcp ?? {}")
     expect(c).toContain("connectorToggle.mutate(id)")
     expect(c).toContain("connectors={connectors}")
     // readable names for the company connectors, with a title-cased fallback for anything else
@@ -846,6 +846,20 @@ describe("the + menu lists the company connectors", () => {
 
   test("the label is an English string only: every other language falls back to English", () => {
     expect(read("packages/app/src/i18n/en.ts")).toContain('"prompt.action.connectors": "Connectors",')
+    expect(read("packages/app/src/i18n/en.ts")).toContain('"prompt.action.connectors.unavailable": "Not enabled yet",')
     expect(read("packages/app/src/i18n/de.ts")).not.toContain("prompt.action.connectors")
+  })
+
+  test("the whole catalog is shown, not just what the company has enabled: unshipped connectors appear disabled with a badge", () => {
+    const c = composer()
+    expect(c).toContain("const CONNECTOR_CATALOG: Record<string, string> = {")
+    for (const name of ['atlassian: "Atlassian (Jira, Confluence)"', 'slack: "Slack"', '"azure-devops": "Azure DevOps"', 'salesforce: "Salesforce"', 'servicenow: "ServiceNow"', 'outlook: "Outlook"']) {
+      expect(c).toContain(name)
+    }
+    // every catalog key appears even when the live config only has some of them; the rest are "unavailable"
+    expect(c).toContain("Object.keys(CONNECTOR_CATALOG)")
+    expect(c).toContain('connectorSync().data.mcp?.[id]?.status ?? "unavailable"')
+    // never call the toggle for a connector the company has not shipped; nothing to connect to
+    expect(c).toContain('if (connectorStatus(id) === "unavailable") return')
   })
 })

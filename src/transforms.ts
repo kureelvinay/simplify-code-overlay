@@ -930,7 +930,7 @@ export const TRANSFORMS: Transform[] = [
       "                        <MenuV2.Item\n" +
       "                          data-connector={item.id}\n" +
       "                          data-status={item.status}\n" +
-      '                          disabled={item.status === "pending"}\n' +
+      '                          disabled={item.status === "pending" || item.status === "unavailable"}\n' +
       "                          badge={props.connectors!.statusLabel(item.status)}\n" +
       "                          onSelect={() => props.connectors!.onToggle(item.id)}\n" +
       "                        >\n" +
@@ -966,23 +966,31 @@ export const TRANSFORMS: Transform[] = [
     find: "export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {\n  const dialog = useDialog()\n  const command = useCommand()\n  const language = useLanguage()\n",
     replace:
       "export function PromptInputV2Composer(props: PromptInputV2ComposerProps) {\n  const dialog = useDialog()\n  const command = useCommand()\n  const language = useLanguage()\n\n" +
-      "  // {{productName}}: the company connectors for the \"+\" menu, from the live connector state and the toggle the /mcp dialog uses\n" +
+      "  // {{productName}}: the connector catalog for the \"+\" menu. Every known connector is listed, whether or not\n" +
+      "  // the company has shipped it yet, so developers can see what is coming; live status comes from the /mcp state.\n" +
       "  const connectorSync = useSync()\n" +
       "  const connectorToggle = useMcpToggle()\n" +
-      "  const connectorNames: Record<string, string> = {\n" +
+      "  const CONNECTOR_CATALOG: Record<string, string> = {\n" +
       '    atlassian: "Atlassian (Jira, Confluence)",\n    slack: "Slack",\n    "azure-devops": "Azure DevOps",\n    salesforce: "Salesforce",\n    servicenow: "ServiceNow",\n    outlook: "Outlook",\n  }\n' +
       "  const connectorName = (id: string) =>\n" +
-      '    connectorNames[id] ?? id.split(/[-_]/).filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1)).join(" ")\n' +
+      '    CONNECTOR_CATALOG[id] ?? id.split(/[-_]/).filter(Boolean).map((word) => word[0].toUpperCase() + word.slice(1)).join(" ")\n' +
       "  const connectorStatusKeys: Record<string, string> = {\n" +
-      '    connected: "mcp.status.connected",\n    failed: "mcp.status.failed",\n    needs_auth: "mcp.status.needs_auth",\n    needs_client_registration: "mcp.status.needs_client_registration",\n    disabled: "mcp.status.disabled",\n  }\n' +
+      '    connected: "mcp.status.connected",\n    failed: "mcp.status.failed",\n    needs_auth: "mcp.status.needs_auth",\n    needs_client_registration: "mcp.status.needs_client_registration",\n    disabled: "mcp.status.disabled",\n    unavailable: "prompt.action.connectors.unavailable",\n  }\n' +
+      '  const connectorStatus = (id: string) => connectorSync().data.mcp?.[id]?.status ?? "unavailable"\n' +
       "  const connectors = {\n" +
       '    label: language.t("prompt.action.connectors"),\n' +
-      "    items: () =>\n" +
-      "      Object.entries(connectorSync().data.mcp ?? {})\n" +
-      "        .map(([id, entry]) => ({ id, name: connectorName(id), status: entry.status as string }))\n" +
-      "        .sort((a, b) => a.name.localeCompare(b.name)),\n" +
+      "    items: () => {\n" +
+      "      const liveMcp = connectorSync().data.mcp ?? {}\n" +
+      "      const ids = new Set([...Object.keys(CONNECTOR_CATALOG), ...Object.keys(liveMcp)])\n" +
+      "      return [...ids]\n" +
+      "        .map((id) => ({ id, name: connectorName(id), status: connectorStatus(id) }))\n" +
+      "        .sort((a, b) => a.name.localeCompare(b.name))\n" +
+      "    },\n" +
       "    statusLabel: (status: string) => (connectorStatusKeys[status] ? language.t(connectorStatusKeys[status] as never) : undefined),\n" +
-      "    onToggle: (id: string) => {\n      if (!connectorToggle.isPending) connectorToggle.mutate(id)\n    },\n" +
+      "    onToggle: (id: string) => {\n" +
+      '      if (connectorStatus(id) === "unavailable") return\n' +
+      "      if (!connectorToggle.isPending) connectorToggle.mutate(id)\n" +
+      "    },\n" +
       "  }\n",
     count: 1,
   },
@@ -997,7 +1005,7 @@ export const TRANSFORMS: Transform[] = [
     kind: "edit",
     file: "packages/app/src/i18n/en.ts",
     find: '  "prompt.action.attachFile": "Add files",\n',
-    replace: '  "prompt.action.attachFile": "Add files",\n  "prompt.action.connectors": "Connectors",\n',
+    replace: '  "prompt.action.attachFile": "Add files",\n  "prompt.action.connectors": "Connectors",\n  "prompt.action.connectors.unavailable": "Not enabled yet",\n',
     count: 1,
   },
 
