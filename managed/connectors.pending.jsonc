@@ -20,17 +20,11 @@
       "enabled": false
     },
 
-    // Microsoft's hosted server. Needs an Azure DevOps organisation backed by Microsoft Entra. Entra does not offer
-    // automatic client registration either, so register an app in Entra and put its client id below (the redirect
-    // URL to allow is http://127.0.0.1:19876/mcp/oauth/callback). If that is not possible, use Microsoft's local server:
-    //   { "type": "local", "command": ["npx", "-y", "@azure-devops/mcp@<exact version>", "<organisation>"], "enabled": true }
-    // Confirm the endpoint against Microsoft Learn ("Set up the remote Azure DevOps MCP Server") before enabling.
-    "azure-devops": {
-      "type": "remote",
-      "url": "https://mcp.dev.azure.com/REPLACE-WITH-YOUR-ORG",
-      "oauth": { "clientId": "REPLACE-WITH-ENTRA-APP-CLIENT-ID" },
-      "enabled": false
-    },
+    // Azure DevOps is NOT here: it ships in simplify-code.jsonc via Microsoft's local server (npx), which uses
+    // the developer's own Microsoft sign-in and needs no Entra app registration. If a one-click, no-Node
+    // experience is wanted later, Microsoft's HOSTED server is the alternative, but it does need an Entra app
+    // registration (Entra has no automatic client registration): { "type": "remote", "url": "https://mcp.dev.azure.com/<org>",
+    // "oauth": { "clientId": "<entra-app-client-id>" }, "enabled": true }, redirect URL http://127.0.0.1:19876/mcp/oauth/callback.
 
     // Salesforce hosted MCP servers. An admin creates an External Client App in the org and a hosted MCP server
     // configuration linked to it; the URL and client id come from there. Per-user OAuth with PKCE.
@@ -64,7 +58,6 @@
   // Add read-only allow rules AFTER the ask rule for that connector (the last matching rule wins).
   "permission": {
     "slack_*": "ask",
-    "azure-devops_*": "ask",
     "salesforce_*": "ask",
     "servicenow_*": "ask",
     "outlook_*": "ask"

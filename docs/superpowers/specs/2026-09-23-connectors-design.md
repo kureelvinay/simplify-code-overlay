@@ -64,7 +64,7 @@ Keys are short and stable because they prefix tool names: `atlassian`, `azure-de
 | Key | Server | Transport and auth | Needs from IT first |
 |---|---|---|---|
 | `atlassian` | Atlassian's official hosted server, `https://mcp.atlassian.com/v2/mcp` (Jira, Confluence, JSM, Bitbucket) | remote, OAuth 2.1 with dynamic client registration | nothing per app |
-| `azure-devops` | Microsoft's official hosted server (remote, GA) | remote, Microsoft Entra | Org backed by Entra; Entra does not offer automatic client registration, so an Entra app registered by IT and its client id in `oauth.clientId`; otherwise fall back to Microsoft's local server (`azure-devops-mcp` via `npx`). Ships pending |
+| `azure-devops` | Microsoft's **local** server, `@azure-devops/mcp` via `npx` (not the hosted one) | local, the package's own default `interactive` auth (developer's own Microsoft account) | None from IT: no Entra app registration needed, because the local server's default auth is not the hosted server's OAuth flow. Needs Node.js 20+ on the developer's machine. **Verified 2026-09-28 with a real, authenticated `tools/call` against a real org** (`SimplifyHealthcare`), not just a reachability check. Shipped. The hosted server remains available later for a one-click, no-Node experience, once an Entra app is registered |
 | `slack` | Slack's official hosted server, `https://mcp.slack.com/mcp` | remote, OAuth. **Verified against the real endpoint: its login server does not support automatic client registration** | A Slack app registered by IT and its client id in `oauth.clientId`; workspace admin approves it. Ships pending |
 | `salesforce` | Salesforce hosted MCP servers (GA) | remote, per-user OAuth with PKCE | Admin creates an External Client App per org; its client id goes in `oauth.clientId` |
 | `servicenow` | ServiceNow MCP Server Console | remote, per-user OAuth 2.0 authorization code | Admin configures an inbound integration; instance-specific URL |
@@ -81,7 +81,7 @@ still appears in the menu with a switch, and switching it on would fail against 
 templates live in `managed/connectors.pending.jsonc` (with the permission rule each will need); shipping one
 means filling in the placeholders and moving its two blocks into `managed/simplify-code.jsonc`. The checker
 rejects a placeholder in an enabled connector, so a template cannot ship by accident. Shipped now: `atlassian`
-only. Pending: `slack`, `azure-devops`, `salesforce`, `servicenow`, `outlook`.
+and `azure-devops` (local). Pending: `slack`, `salesforce`, `servicenow`, `outlook`.
 
 ### 4.2 Sign-in
 
@@ -161,17 +161,20 @@ from the live connector state and the same toggle the `/mcp` dialog uses:
 1. **Phase 0, infrastructure** (no external system needed): the `mcp` config block with `enabled:false`
    placeholders, the linter rules, the connector lock, the permission scaffolding, the "+" menu, and an
    end-to-end fake connector.
-2. **Phase 1:** `atlassian` enabled (done). `slack` and `azure-devops` were planned here as needing the least
-   admin setup, but checking the real endpoints showed both need a registered app and client id, so they wait
-   with the others for IT.
+2. **Phase 1:** `atlassian` enabled (done). `slack` was planned here as needing the least admin setup, but
+   checking the real endpoint showed it needs a registered app and client id, so it waits with the others for
+   IT. `azure-devops` was added later, once its local-server, no-registration path was found and verified
+   against a real org and account.
 3. **Phase 2:** `salesforce`, `servicenow` (each needs the admin registration first).
 4. **Phase 3:** `outlook`, after the decision between the community local server and waiting for an official one.
 
 ## 6. Prerequisites owned by SimplifyX IT (not something the build can do)
 
 Slack workspace approval; Salesforce External Client App per org; ServiceNow inbound integration and MCP
-server publication; Microsoft Entra app registration and consent for Outlook (and possibly Azure DevOps);
-a security review of any third-party MCP server code. These set the real schedule for phases 2 and 3.
+server publication; Microsoft Entra app registration and consent for Outlook; a security review of any
+third-party MCP server code (Outlook's candidate, and Azure DevOps's own local server, since it runs
+arbitrary vendor code on the developer's machine even though it needed no registration). Node.js 20+ must be
+present on every developer's machine for Azure DevOps to work. These set the real schedule for phases 2 and 3.
 
 ## 7. Testing
 
