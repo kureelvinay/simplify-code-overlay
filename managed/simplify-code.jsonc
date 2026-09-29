@@ -64,24 +64,33 @@
     ]
   },
 
-  // 6. Connectors: MCP servers the developer signs in to as themselves (OAuth), shown in the "+" menu under the
-  //    chat box. Only connectors that work with nothing from SimplifyX IT are here; the others wait in
+  // 6. Connectors: MCP servers the developer signs in to as themselves, shown in the "+" menu under the chat
+  //    box. Only connectors that work with nothing from SimplifyX IT are here; the others wait in
   //    connectors.pending.jsonc, because even a disabled entry would appear in the menu and fail when switched on.
-  //    Atlassian (Jira, Confluence, Jira Service Management, Bitbucket) registers clients automatically:
+  //    Atlassian (Jira, Confluence, Jira Service Management, Bitbucket) registers OAuth clients automatically:
   //    checked against the real endpoint, it answers "needs authentication", which the menu shows as Sign in.
+  //    Azure DevOps: NOT the hosted server (its Entra login does not support automatic client registration,
+  //    same problem as Slack below). This is Microsoft's own LOCAL server instead, run by the app itself via
+  //    npx: no Entra app registration needed, because its default "interactive" auth signs the developer in
+  //    with their own Microsoft account. Verified against the real org (a live tools/call, not just a
+  //    reachability check): SimplifyHealthcare, returning real project data. Needs Node.js 20+ installed
+  //    separately on the machine (the app's own binary does not provide npx); first tool use opens a
+  //    Microsoft sign-in window unless a session is already cached, as it was in this test.
   //    Slack is NOT here: its login server does not support automatic client registration, so a Slack app
   //    registered by IT (and its client id) is needed first. See connectors.pending.jsonc.
   "mcp": {
-    "atlassian": { "type": "remote", "url": "https://mcp.atlassian.com/v2/mcp", "enabled": true }
+    "atlassian": { "type": "remote", "url": "https://mcp.atlassian.com/v2/mcp", "enabled": true },
+    "azure-devops": { "type": "local", "command": ["npx", "-y", "@azure-devops/mcp@2.10.0", "SimplifyHealthcare"], "enabled": true }
   },
 
   // 7. Connector tools ask before they run. The app's own default is to ALLOW every tool, so without these lines a
-  //    connector could create tickets or post messages unprompted. The last matching rule wins: to let one connector's
-  //    read-only tools run without asking, add e.g. "atlassian_search*": "allow" AFTER its ask line, never before.
-  //    Tool names are <connector>_<tool>. Fetched tickets, mail and chat are untrusted text that a model reads while
-  //    holding file and shell tools, which is why writes ask.
+  //    connector could create tickets, post messages or edit work items unprompted. The last matching rule wins:
+  //    to let one connector's read-only tools run without asking, add e.g. "atlassian_search*": "allow" AFTER its
+  //    ask line, never before. Tool names are <connector>_<tool>. Fetched tickets, mail, chat and work items are
+  //    untrusted text that a model reads while holding file and shell tools, which is why writes ask.
   "permission": {
-    "atlassian_*": "ask"
+    "atlassian_*": "ask",
+    "azure-devops_*": "ask"
   },
 
   // 8. Required plugins that cannot ship inside the app. The app installs them on every machine from

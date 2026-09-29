@@ -82,7 +82,7 @@ On an installed machine the upstream name does not appear: the command is `simpl
 
 ### Connectors
 
-Developers connect to Jira/Confluence and, once IT has registered the apps, Slack, Azure DevOps, Salesforce, ServiceNow and Outlook from the
+Developers connect to Jira/Confluence and Azure DevOps today, and, once IT has registered the apps, Slack, Salesforce, ServiceNow and Outlook from the
 **+** menu under the chat box. They are MCP servers listed in the enforced config; each developer signs in as
 themselves, every connector tool asks before it runs (the app allows by default, so the enforced config says
 otherwise explicitly), and `mcp-lock` keeps the list the company's. Guide, IT prerequisites per system, how to enable
