@@ -718,6 +718,46 @@ export const TRANSFORMS: Transform[] = [
     replace: 'client_name: "{{productName}}",\n      client_uri: "https://github.com/{{releaseRepo}}",',
     count: 1,
   },
+  // The local OAuth callback server (packages/core/src/oauth/page.ts) renders its own success/error/pending
+  // pages entirely client-side — this is OUR code, not the third-party server's, and it is what the developer
+  // actually sees close the loop after signing in to any connector (Atlassian today). Its wordmark is a
+  // hand-drawn SVG spelling "OpenCode" pixel-by-pixel, so a plain text sweep would miss it; replaced with the
+  // same S-mark + wordmark the titlebar's BrandLockup uses (packages/ui/src/components/logo.tsx).
+  {
+    kind: "edit",
+    file: "packages/core/src/oauth/page.ts",
+    find:
+      "// OpenCode wordmark — same path geometry as packages/ui/src/components/logo.tsx (Logo).\n" +
+      'const WORDMARK = `<svg class="wordmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 234 42" fill="none" aria-label="OpenCode" role="img">\n' +
+      '        <path d="M18 30H6V18H18V30Z" fill="var(--oc-icon-weak)" />\n' +
+      '        <path d="M18 12H6V30H18V12ZM24 36H0V6H24V36Z" fill="var(--oc-icon-base)" />\n' +
+      '        <path d="M48 30H36V18H48V30Z" fill="var(--oc-icon-weak)" />\n' +
+      '        <path d="M36 30H48V12H36V30ZM54 36H36V42H30V6H54V36Z" fill="var(--oc-icon-base)" />\n' +
+      '        <path d="M84 24V30H66V24H84Z" fill="var(--oc-icon-weak)" />\n' +
+      '        <path d="M84 24H66V30H84V36H60V6H84V24ZM66 18H78V12H66V18Z" fill="var(--oc-icon-base)" />\n' +
+      '        <path d="M108 36H96V18H108V36Z" fill="var(--oc-icon-weak)" />\n' +
+      '        <path d="M108 12H96V36H90V6H108V12ZM114 36H108V12H114V36Z" fill="var(--oc-icon-base)" />\n' +
+      '        <path d="M144 30H126V18H144V30Z" fill="var(--oc-icon-weak)" />\n' +
+      '        <path d="M144 12H126V30H144V36H120V6H144V12Z" fill="var(--oc-icon-strong)" />\n' +
+      '        <path d="M168 30H156V18H168V30Z" fill="var(--oc-icon-weak)" />\n' +
+      '        <path d="M168 12H156V30H168V12ZM174 36H150V6H174V36Z" fill="var(--oc-icon-strong)" />\n' +
+      '        <path d="M198 30H186V18H198V30Z" fill="var(--oc-icon-weak)" />\n' +
+      '        <path d="M198 12H186V30H198V12ZM204 36H180V6H198V0H204V36Z" fill="var(--oc-icon-strong)" />\n' +
+      '        <path d="M234 24V30H216V24H234Z" fill="var(--oc-icon-weak)" />\n' +
+      '        <path d="M216 12V18H228V12H216ZM234 24H216V30H234V36H210V6H234V24Z" fill="var(--oc-icon-strong)" />\n' +
+      "      </svg>`",
+    replace:
+      "// {{productName}}: the same S mark + wordmark as the titlebar's BrandLockup (packages/ui/src/components/logo.tsx).\n" +
+      'const WORDMARK = `<svg class="wordmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 20" height="19" aria-label="{{productName}}" role="img">\n' +
+      '        <path d="M0 8H16V12H0V8Z" fill="#9a4bb0" />\n' +
+      '        <path d="M0 0H16V4H0V0ZM0 4H4V8H0V4ZM12 12H16V16H12V12ZM0 16H16V20H0V16Z" fill="var(--oc-icon-strong)" />\n' +
+      '        <text x="24" y="15" font-family="var(--oc-font-sans)" font-size="14" font-weight="600" fill="var(--oc-text-strong)">{{productName}}</text>\n' +
+      "      </svg>`",
+    count: 1,
+  },
+  // Everything else on that page is plain text: the tab title, and the success/error/pending copy (duplicated
+  // once as server-rendered HTML and once inside the implicit-grant bootstrap script's own JS strings).
+  { kind: "rule", files: "packages/core/src/oauth/page.ts", find: "OpenCode", replace: "{{productName}}", except: [], minFiles: 1 },
   { kind: "edit", file: "packages/opencode/src/cli/cmd/upgrade.ts", find: 'describe: "upgrade opencode to the latest or a specific version"', replace: 'describe: "upgrade {{productName}} to the latest or a specific version"', count: 1 },
   { kind: "edit", file: "packages/opencode/src/cli/cmd/upgrade.ts", find: "`opencode is installed to ${process.execPath}", replace: "`{{productName}} is installed to ${process.execPath}", count: 1 },
   { kind: "edit", file: "packages/opencode/src/cli/cmd/upgrade.ts", find: "`opencode upgrade skipped: ${target}", replace: "`{{productSlug}} upgrade skipped: ${target}", count: 1 },
