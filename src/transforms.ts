@@ -708,6 +708,16 @@ export const TRANSFORMS: Transform[] = [
   { kind: "edit", file: "packages/opencode/src/cli/error.ts", find: "Try: \\`opencode models\\` to list available models", replace: "Try: \\`{{productSlug}} models\\` to list available models", count: 1 },
   { kind: "edit", file: "packages/opencode/src/cli/error.ts", find: "Run \\`opencode auth login ${url}\\` to re-authenticate.", replace: "Run \\`{{productSlug}} auth login ${url}\\` to re-authenticate.", count: 1 },
   { kind: "edit", file: "packages/opencode/src/cli/error.ts", find: "Note, opencode does not support MCP authentication yet.", replace: "Note, {{productName}} does not support MCP authentication yet.", count: 1 },
+  // Dynamic client registration for remote MCP connectors (e.g. Atlassian): this is what the third-party
+  // server's own authorization page shows as the app the developer is signing in to. Left as "OpenCode"
+  // it names someone else's product on our sign-in screen instead of ours.
+  {
+    kind: "edit",
+    file: "packages/opencode/src/mcp/oauth-provider.ts",
+    find: 'client_name: "OpenCode",\n      client_uri: "https://opencode.ai",',
+    replace: 'client_name: "{{productName}}",\n      client_uri: "https://github.com/{{releaseRepo}}",',
+    count: 1,
+  },
   { kind: "edit", file: "packages/opencode/src/cli/cmd/upgrade.ts", find: 'describe: "upgrade opencode to the latest or a specific version"', replace: 'describe: "upgrade {{productName}} to the latest or a specific version"', count: 1 },
   { kind: "edit", file: "packages/opencode/src/cli/cmd/upgrade.ts", find: "`opencode is installed to ${process.execPath}", replace: "`{{productName}} is installed to ${process.execPath}", count: 1 },
   { kind: "edit", file: "packages/opencode/src/cli/cmd/upgrade.ts", find: "`opencode upgrade skipped: ${target}", replace: "`{{productSlug}} upgrade skipped: ${target}", count: 1 },

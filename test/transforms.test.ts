@@ -109,9 +109,9 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and seventy-two entries: eighty-eight file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(172)
-    expect(UPSTREAM_FILES).toHaveLength(88)
+  test("has one hundred and seventy-three entries: eighty-nine file targets and three rules", () => {
+    expect(TRANSFORMS).toHaveLength(173)
+    expect(UPSTREAM_FILES).toHaveLength(89)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
       "packages/desktop/src/renderer/i18n/*.ts",
@@ -779,6 +779,15 @@ describe("no traces of the upstream name on an installed machine", () => {
       const code = read(file).split("\n").filter((l) => !l.trim().startsWith("//")).join("\n")
       expect(code).not.toMatch(/[`"']opencode /)
     }
+  })
+
+  test("a remote MCP connector's dynamic client registration names our product, not OpenCode's", () => {
+    const text = read("packages/opencode/src/mcp/oauth-provider.ts")
+    // the third-party server's own authorization page (e.g. Atlassian's) renders this back to the
+    // developer as "the app you are signing in to" — it must never show someone else's product
+    expect(text).toContain('client_name: "Simplify Code",')
+    expect(text).not.toContain('client_uri: "https://opencode.ai",')
+    expect(text).toContain('client_uri: "https://github.com/simplifyx/simplify-code-releases",')
   })
 
   test("every command description in --help names the product, and the server's defaults do too", () => {
