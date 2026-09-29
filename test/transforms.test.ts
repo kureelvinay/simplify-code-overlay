@@ -109,12 +109,13 @@ function expectEveryTokenAliased(block: string): number {
 }
 
 describe("TRANSFORMS against v1.18.31 fixtures", () => {
-  test("has one hundred and seventy-three entries: eighty-nine file targets and three rules", () => {
-    expect(TRANSFORMS).toHaveLength(173)
-    expect(UPSTREAM_FILES).toHaveLength(89)
+  test("has one hundred and seventy-five entries: ninety file targets and four rules", () => {
+    expect(TRANSFORMS).toHaveLength(175)
+    expect(UPSTREAM_FILES).toHaveLength(90)
     expect(UPSTREAM_RULES).toEqual([
       "packages/app/src/i18n/*.ts",
       "packages/desktop/src/renderer/i18n/*.ts",
+      "packages/core/src/oauth/page.ts",
       "packages/tui/src/feature-plugins/home/tips-view.tsx",
     ])
   })
@@ -788,6 +789,20 @@ describe("no traces of the upstream name on an installed machine", () => {
     expect(text).toContain('client_name: "Simplify Code",')
     expect(text).not.toContain('client_uri: "https://opencode.ai",')
     expect(text).toContain('client_uri: "https://github.com/simplifyx/simplify-code-releases",')
+  })
+
+  test("the local OAuth callback page names our product, not OpenCode's, including its own wordmark", () => {
+    const text = read("packages/core/src/oauth/page.ts")
+    // this page is rendered by our own loopback server, not the third-party OAuth provider — it is
+    // literally the last thing the developer sees when finishing a connector sign-in (Atlassian today)
+    expect(text).not.toContain("OpenCode")
+    expect(text).toContain("<title>${escapeHtml(input.title)} · Simplify Code</title>")
+    expect(text).toContain('message: provider ? `Simplify Code is now connected to ${escapeHtml(provider)}.` : "Simplify Code is now authorized."')
+    expect(text).toContain("Close this window and try again from Simplify Code.")
+    // the wordmark itself was a hand-drawn SVG spelling "OpenCode" pixel-by-pixel; a plain find of the
+    // word alone would miss it, so check its replacement carries our name and drops the old aria-label
+    expect(text).toContain('aria-label="Simplify Code" role="img">')
+    expect(text).toContain(">Simplify Code</text>")
   })
 
   test("every command description in --help names the product, and the server's defaults do too", () => {
