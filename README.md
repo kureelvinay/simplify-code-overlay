@@ -58,6 +58,15 @@ bun run script/publish-bundle.ts --version 1.18.31 --repo owner/name [--bundle d
 bun run src/pipeline.ts --release --version 1.18.31 # build all targets, publish, GitHub release
 ```
 
+Every publish reuses the same fixed tag per app version by default (`v1.18.31`, `v1.18.31-desktop`), so re-running it to push a fix just replaces that release's assets in place. GitHub's release page shows the release's original `published_at` date, which does **not** advance when assets are replaced — so a same-day fix can look, at a glance, like it is still "yesterday's" release even though every asset was just re-uploaded (their own per-file timestamps, visible in the expanded asset list, do show the truth). To keep the visible release date honest, publish with an explicit dated `--tag` instead of the default, the same way the team bundle already dates itself by its `--version <date>`:
+
+```bash
+bun run script/publish-bundle.ts --version 1.18.31 --repo owner/name --tag v1.18.31-2026-09-29
+bun run script/publish-bundle.ts --version 1.18.31 --repo owner/name --bundle desktop --tag v1.18.31-desktop-2026-09-29
+```
+
+This creates a fresh release per publish date rather than resuming an old one. `releaseTag()` in `src/publish.ts` stays a pure function of `(version, kind)` on purpose (it has tests asserting exact tag strings) — it does not read the wall clock itself, so the date is always the caller's job.
+
 Add `--skip-web-ui` to `--local` for a faster build without the embedded web UI.
 
 `--local` replaces any stock `opencode-ai` install with the build it just produced; `npm install -g opencode-ai` restores the stock package. It prints npm's own global bin path, and warns if the `opencode` that wins on your `PATH` comes from somewhere else (a brew or curl-installer copy shadowing the branded one).
